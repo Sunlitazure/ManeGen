@@ -30,17 +30,36 @@ from bpy.types import (Panel,
                        PropertyGroup,
                        Object,
                        )
+from enum import Enum
 
 
 #----------------------------------------------------------------------------------------
 #                                   Helper functions
 #----------------------------------------------------------------------------------------
+class FormType(Enum):
+    CONE = 0
+    TUBE = 1
+    SPIKE = 2
+    CARD = 3
+
+
+
 def getSeams(obj):
     seams = []
     for edge in obj.data.edges:
         if edge.use_seam:
             seams.append(edge)
     return seams #array of edge objects
+
+
+
+def getTris(obj):
+    faces = obj.data.polygons
+    tris = []
+    for face in faces:
+        if len(face.edge_keys) == 3:
+            tris.append(face.index)
+    return tris #array of face indices
 
 
 
@@ -56,7 +75,8 @@ def getWorldCoordinate(obj, co):
 
 
 
-def getLoops(obj):    
+def getLoops(obj):
+    formType = getHairFormType(obj)
     edgesWithVerts = dict([(v.index, []) for v in obj.data.vertices])
     
     for e in obj.data.edges:
@@ -96,7 +116,48 @@ def getLoops(obj):
                     break
         if loopVertsSize == sum(len(x) for x in loopVerts):
             break
+    
+    tempLoopVerts = loopVerts[:]
+    if (formType == FormType.CONE) or (formType == FormType.SPIKE):
+        for i in range(1, len(loopVerts)):
+            loopVerts[i].append(loopVerts[0][-1])
+        
     return loopVerts #array of vertex index arrays
+
+
+
+def separateObj(obj):
+    
+
+
+
+def getHairFormType(obj):
+    seams = getSeams(obj)
+    print(len(seams))
+    seamVerts = []
+    sharedVerts = 0
+    for e in seams:
+        for v in e.vertices:
+            if v not in seamVerts:
+                seamVerts.append(v)
+            elif v in seamVerts:
+                sharedVerts = sharedVerts + 1
+    loop = False
+    print(sharedVerts)
+    if sharedVerts == len(seamVerts):
+        loop = True
+    
+    tris = getTris(obj)
+    if len(tris) == 0:
+        if loop:
+            return FormType.TUBE
+        else:
+            return FormType.CARD
+    elif len(tris) > 0:
+        if loop:
+            return FormType.CONE
+        else:
+            return FormType.SPIKE
 
 
 
