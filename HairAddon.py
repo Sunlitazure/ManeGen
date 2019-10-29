@@ -127,7 +127,53 @@ def getLoops(obj):
 
 
 def separateObj(obj):
+    vertices = []
+    edges = []
     
+    while True:
+        newObj = False
+        for v in obj.data.vertices:
+            contained = False
+            for o in vertices:
+                if v.index in o:
+                    contained = True
+                    break
+            if not contained:
+                refVert = 0
+                refObj = len(vertices)
+                vertices.append([v.index])
+                edges.append([])
+                newObj = True
+                break
+            
+        if not newObj:
+           break
+        
+        added = True
+        while added:
+            added = False
+            for e in obj.data.edges:
+                for v in e.vertices:
+                    if (vertices[refObj][refVert] == v) and (e.index not in edges[refObj]):
+                        edges[refObj].append(e.index)
+                        added = True
+                        
+            for e in edges[refObj]:
+                for v in obj.data.edges[e].vertices:
+                    if v not in vertices[refObj]:
+                        vertices[refObj].append(v)
+                        added = True
+            
+            if added:
+                refVert = refVert + 1
+    
+    return vertices, edges
+#import sys
+#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
+#import HairAddon
+#from HairAddon import separateObj
+#separateObj(bpy.context.object)
+             
 
 
 
@@ -330,7 +376,7 @@ if __name__ == "__main__":
 #bpy.context.object.particle_systems['
 
 #import sys
-#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts')
+#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
 #import HairAddon
 #from HairAddon import getSeams
 
