@@ -166,44 +166,59 @@ def separateObj(obj):
             
             if added:
                 refVert = refVert + 1
+                
+        
+        faces = [[f.index for f in obj.data.polygons if f.vertices[0] in v] for v in vertices]
     
-    return vertices, edges
-#import sys
-#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
-#import HairAddon
-#from HairAddon import separateObj
-#separateObj(bpy.context.object)
-             
+    return vertices, edges, faces
 
 
 
 def getHairFormType(obj):
-    seams = getSeams(obj)
+    sepVert, sepEdge, sepFace = separateObj(obj)
+    allSeams = getSeams(obj)
+    seams = [[e for e in allSeams if e.vertices[0] in v] for v in sepVert]
     print(len(seams))
-    seamVerts = []
-    sharedVerts = 0
-    for e in seams:
-        for v in e.vertices:
-            if v not in seamVerts:
-                seamVerts.append(v)
-            elif v in seamVerts:
-                sharedVerts = sharedVerts + 1
-    loop = False
-    print(sharedVerts)
-    if sharedVerts == len(seamVerts):
-        loop = True
+    seamVerts = [[] for ob in seams]
+    loop = [False for ob in seams]
     
-    tris = getTris(obj)
-    if len(tris) == 0:
-        if loop:
-            return FormType.TUBE
-        else:
-            return FormType.CARD
-    elif len(tris) > 0:
-        if loop:
-            return FormType.CONE
-        else:
-            return FormType.SPIKE
+    for i in range(len(seams)):
+        sharedVerts = 0
+        for e in seams[i]:
+            for v in e.vertices:
+                if v not in seamVerts[i]:
+                    seamVerts[i].append(v)
+                elif v in seamVerts[i]:
+                    sharedVerts = sharedVerts + 1
+        if sharedVerts == len(seamVerts[i]):
+            loop[i] = True
+        
+        allTris = getTris(obj)
+        tris = [[f for f in allTris if f in sf] for sf in sepFace]
+        
+        forms = [None for ob in seams]
+        
+        for i in range(len(tris)):
+            if len(tris[i]) == 0:
+                if loop[i]:
+                    forms[i] = FormType.TUBE
+                else:
+                    forms[i] = FormType.CARD
+            elif len(tris[i]) > 0:
+                if loop[i]:
+                    forms[i] = FormType.CONE
+                else:
+                    forms[i] = FormType.SPIKE
+        
+        return forms
+#import sys
+#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
+#import HairAddon
+#from HairAddon import getHairFormType
+
+#from importlib import reload
+#reload(HairAddon)
+#from HairAddon import getHairFormType   
 
 
 
