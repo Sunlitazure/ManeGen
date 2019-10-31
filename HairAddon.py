@@ -75,54 +75,66 @@ def getWorldCoordinate(obj, co):
 
 
 
-def getLoops(obj):
-    formType = getHairFormType(obj)
+def getLoops(obj, sepObj):
+    sepVert, sepEdge, sepFace = sepObj
+    formType = getHairFormType(obj, sepObj)
     edgesWithVerts = dict([(v.index, []) for v in obj.data.vertices])
     
     for e in obj.data.edges:
         for v in e.vertices:
             if e not in edgesWithVerts[v]:
                 edgesWithVerts[v].append(e)
-    
-    loopVerts = []
-    for edge in getSeams(obj):
-        edgeVerts = edge.vertices
-        for vert in edgeVerts:
-            if [vert] not in loopVerts:
-                loopVerts.append([vert])
-                
-    while True:
-        loopVertsSize = sum(len(x) for x in loopVerts)
-        loopsN = len(loopVerts)
-        for loop in range(loopsN):
-            loopEndVert = loopVerts[loop][-1]
-            for edge in edgesWithVerts[loopEndVert]:
-                vertInLoops = False
-                for vert in edge.vertices:
-                    if vert == loopEndVert:
-                        continue
-                    else:
-                        for loopToCheck in loopVerts:
-                            for vertToCheck in loopToCheck:
-                                if vert == vertToCheck:
-                                    vertInLoops = True
-                                    break
-                            if vertInLoops:
-                                break
-                        if not vertInLoops:
-                            loopVerts[loop].append(vert)
-                            break
-                if not vertInLoops:
-                    break
-        if loopVertsSize == sum(len(x) for x in loopVerts):
-            break
-    
-    tempLoopVerts = loopVerts[:]
-    if (formType == FormType.CONE) or (formType == FormType.SPIKE):
-        for i in range(1, len(loopVerts)):
-            loopVerts[i].append(loopVerts[0][-1])
         
+    seams = getSeams(obj)
+    loopVerts = [[] for ob in formType]
+    print(len(formType))
+    for i in range(len(formType)):
+        objSeams = [e for e in seams if e.index in sepEdge[i]]
+        for edge in objSeams:
+            for vert in edge.vertices:
+                if [vert] not in loopVerts[i]:
+                    loopVerts[i].append([vert])
+                    
+        while True:
+            loopVertsSize = sum(len(x) for x in loopVerts[i])
+            loopsN = len(loopVerts[i])
+            for loop in range(loopsN):
+                loopEndVert = loopVerts[i][loop][-1]
+                for edge in edgesWithVerts[loopEndVert]:
+                    vertInLoops = False
+                    for vert in edge.vertices:
+                        if vert == loopEndVert:
+                            continue
+                        else:
+                            for loopToCheck in loopVerts[i]:
+                                for vertToCheck in loopToCheck:
+                                    if vert == vertToCheck:
+                                        vertInLoops = True
+                                        break
+                                if vertInLoops:
+                                    break
+                            if not vertInLoops:
+                                loopVerts[i][loop].append(vert)
+                                break
+                    if not vertInLoops:
+                        break
+            if loopVertsSize == sum(len(x) for x in loopVerts[i]):
+                break
+        
+        tempLoopVerts = loopVerts[:]
+        if (formType[i] == FormType.CONE) or (formType[i] == FormType.SPIKE):
+            for j in range(1, len(loopVerts[i])):
+                loopVerts[i][j].append(loopVerts[i][0][-1])
+            
     return loopVerts #array of vertex index arrays
+#import sys
+#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
+#import HairAddon
+#from HairAddon import getLoops, separateObj
+
+#from importlib import reload
+#reload(HairAddon)
+#from HairAddon import getLoops, separateObj
 
 
 
@@ -174,11 +186,10 @@ def separateObj(obj):
 
 
 
-def getHairFormType(obj):
-    sepVert, sepEdge, sepFace = separateObj(obj)
+def getHairFormType(obj, sepObj):
+    sepVert, sepEdge, sepFace = sepObj
     allSeams = getSeams(obj)
     seams = [[e for e in allSeams if e.vertices[0] in v] for v in sepVert]
-    print(len(seams))
     seamVerts = [[] for ob in seams]
     loop = [False for ob in seams]
     
@@ -211,14 +222,6 @@ def getHairFormType(obj):
                     forms[i] = FormType.SPIKE
         
         return forms
-#import sys
-#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
-#import HairAddon
-#from HairAddon import getHairFormType
-
-#from importlib import reload
-#reload(HairAddon)
-#from HairAddon import getHairFormType   
 
 
 
@@ -261,7 +264,8 @@ class GrowHair(Operator):
         
         activeSysData = bpy.data.particles[partSys[partSys.active_index].settings.name]
         try:
-            loops = getLoops(hairStyle.hairForm)
+            sepObj = separateObj(hairStyle.hairForm)
+            loops = getLoops(hairStyle.hairForm, sepObj)
             
             for i in range(len(loops)-1):
                 length = len(loops[i])
