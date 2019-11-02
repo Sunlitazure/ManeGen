@@ -75,9 +75,8 @@ def getWorldCoordinate(obj, co):
 
 
 
-def getLoops(obj, sepObj):
+def getLoops(obj, sepObj, formType):
     sepVert, sepEdge, sepFace = sepObj
-    formType = getHairFormType(obj, sepObj)
     edgesWithVerts = dict([(v.index, []) for v in obj.data.vertices])
     
     for e in obj.data.edges:
@@ -87,7 +86,6 @@ def getLoops(obj, sepObj):
         
     seams = getSeams(obj)
     loopVerts = [[] for ob in formType]
-    print(len(formType))
     for i in range(len(formType)):
         objSeams = [e for e in seams if e.index in sepEdge[i]]
         for edge in objSeams:
@@ -127,14 +125,6 @@ def getLoops(obj, sepObj):
                 loopVerts[i][j].append(loopVerts[i][0][-1])
             
     return loopVerts #array of vertex index arrays
-#import sys
-#sys.path.append(r'C:\Users\Sunlitazure\Documents\Sunlitazure\projects\pony OC\scripts\Blender-Hairifier')
-#import HairAddon
-#from HairAddon import getLoops, separateObj
-
-#from importlib import reload
-#reload(HairAddon)
-#from HairAddon import getLoops, separateObj
 
 
 
@@ -265,51 +255,65 @@ class GrowHair(Operator):
         activeSysData = bpy.data.particles[partSys[partSys.active_index].settings.name]
         try:
             sepObj = separateObj(hairStyle.hairForm)
-            loops = getLoops(hairStyle.hairForm, sepObj)
+            formType = getHairFormType(hairStyle.hairForm, sepObj)
+            loops = getLoops(hairStyle.hairForm, sepObj, formType)
             
-            for i in range(len(loops)-1):
-                length = len(loops[i])
-                length2 = len(loops[i+1])
-                if length != length2:
-                    self.report({'ERROR'}, 'all sides of hair form must have the same length')
-                
+            for ob in loops:
+                for i in range(len(ob)-1):
+                    length = len(ob[i])
+                    length2 = len(ob[i+1])
+                    if length != length2:
+                        self.report({'ERROR'}, 'all sides of hairform must have the same length')
             
         except AttributeError:
             self.report({'ERROR'}, "Hair form must be mesh object with seams marked where the hair roots start")
             
-        guidesN = len(loops)
-        guideSeg = len(loops[0])
-        
+            
         bpy.ops.particle.edited_clear()
         
+        guidesN = 0
+        guideSeg = len(loops[0][0])
+        for i in range(len(loops)):
+            guidesN = guidesN + len(loops[i])
+            
         activeSysData.count = guidesN
         activeSysData.hair_step = guideSeg - 1
         activeSysData.display_step = 4
-        
+            
         bpy.ops.particle.particle_edit_toggle()
         bpy.context.scene.tool_settings.particle_edit.tool = 'COMB'
         contextOveride = AssembleOverrideContextForView3dOps()
-        bpy.ops.particle.brush_edit(contextOveride, stroke=[{'name':'', 'location':(0,0,0), 'mouse':(0,0), 'pressure':0, 'size':0, 'pen_flip':False, 'time':0, 'is_start':False}])
+        bpy.ops.particle.brush_edit(contextOveride, stroke=[{'name':'',
+                                                             'location':(0,0,0),
+                                                             'mouse':(0,0),
+                                                             'pressure':0,
+                                                             'size':0,
+                                                             'pen_flip':False,
+                                                             'time':0,
+                                                             'is_start':False}])
         bpy.ops.particle.particle_edit_toggle()
         
         context.scene.tool_settings.particle_edit.use_emitter_deflect = False
         context.scene.tool_settings.particle_edit.use_preserve_root = False
         context.scene.tool_settings.particle_edit.use_preserve_length = False
-        
+            
         depsgraph = context.evaluated_depsgraph_get()
         depObj = context.object.evaluated_get(depsgraph)
         depPSys = depObj.particle_systems[partSys.active_index]
         
-        for loop in range(len(loops)):
-            part = depPSys.particles[loop]  
-            part.location = hairStyle.hairForm.data.vertices[loops[loop][0]].co
-            for vert in range(len(loops[loop])):
-                part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[loop][vert]].co
+        shift = 0
+        for i in range(len(loops)):
+            for loop in range(len(loops[i])):
+                part = depPSys.particles[loop + shift]  
+                part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
+                for vert in range(len(loops[i][loop])):
+                    part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
+            shift = shift + len(loops[i])
                 
         bpy.ops.particle.particle_edit_toggle()
         bpy.ops.particle.particle_edit_toggle()
         return {'FINISHED'}
-    
+
 
 
 #-----------------------------------------------------------------------
@@ -337,15 +341,26 @@ class HairAddonPanel(Panel):
         partSys = context.object.particle_systems
         layout = self.layout
         
+        col = layout.column()
+        
         hairStyle = partSys[partSys.active_index].settings.hairStyle
         
-        row = layout.row()
-        row.label(text="add hair form")
+        row = col.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Hairform')
+        row.prop(hairStyle, "hairForm", text='')
         
-        row = layout.row()
-        row.prop(hairStyle, "hairForm", text="Hair Form")
+        row = col.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = "Clump Guide Count")
+        row.prop(hairStyle, "tubeInterp", text = '')
         
-        row = layout.row()
+        row = col.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Strip Subdiv')
+        row.prop(hairStyle, "flatSubdiv", text = '')#, "hair strip sudiv level")
+        
+        row = col.row()
         row.operator("particle.hair_style")
 
 
@@ -356,6 +371,14 @@ class HairAddonPanel(Panel):
 class PartSettingsProperties(PropertyGroup):
     hairForm: PointerProperty(
         type = Object
+        )
+    tubeInterp: IntProperty(
+        default = 0,
+        min = 0)
+    flatSubdiv: IntProperty(
+        default = 0,
+        min = 0,
+        max = 10
         )
 
 
@@ -377,6 +400,8 @@ def register():
         register_class(cls)
 
     bpy.types.ParticleSettings.hairStyle = PointerProperty(type=PartSettingsProperties)
+    bpy.types.ParticleSettings.tubeInterp = PointerProperty(type=PartSettingsProperties)
+    bpy.types.ParticleSettings.flatSubdiv = PointerProperty(type=PartSettingsProperties)
         
     
 def unregister():
