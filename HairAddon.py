@@ -304,10 +304,11 @@ class GrowHair(Operator):
         shift = 0
         for i in range(len(loops)):
             for loop in range(len(loops[i])):
-                part = depPSys.particles[loop + shift]  
-                part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
-                for vert in range(len(loops[i][loop])):
-                    part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
+                if hairStyle.followMesh or (formType[i] == FormType.Card) or (formType[i] == FormType.SPIKE):
+                    part = depPSys.particles[loop + shift]  
+                    part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
+                    for vert in range(len(loops[i][loop])):
+                        part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
             shift = shift + len(loops[i])
                 
         bpy.ops.particle.particle_edit_toggle()
@@ -350,15 +351,45 @@ class HairAddonPanel(Panel):
         row.label(text = 'Hairform')
         row.prop(hairStyle, "hairForm", text='')
         
-        row = col.split(factor = .5, align=True)
-        row.alignment = 'RIGHT'
-        row.label(text = "Clump Guide Count")
-        row.prop(hairStyle, "tubeInterp", text = '')
+        box = col.box()
         
-        row = col.split(factor = .5, align=True)
+        row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text = 'Clump:')
+        
+        row = box.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = "Guide Count")
+        row.prop(hairStyle, "tubeInterp", text = '')
+        if hairStyle.followMesh:
+            row.enabled = False
+        else:
+            row.enabled = True
+        
+        row = box.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Interpolation Seed')
+        row.prop(hairStyle, 'interpSeed', text = '')
+        if hairStyle.followMesh:
+            row.enabled = False
+        else:
+            row.enabled = True
+        
+        row = box.row(align = True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Follow Mesh')
+        row.prop(hairStyle, 'followMesh', text = '')
+        
+        box = col.box()
+        
+        row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text = 'Strip:')
+        
+        row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = 'Strip Subdiv')
-        row.prop(hairStyle, "flatSubdiv", text = '')#, "hair strip sudiv level")
+        row.prop(hairStyle, "stripSubdiv", text = '')
         
         row = col.row()
         row.operator("particle.hair_style")
@@ -375,11 +406,16 @@ class PartSettingsProperties(PropertyGroup):
     tubeInterp: IntProperty(
         default = 0,
         min = 0)
-    flatSubdiv: IntProperty(
+    interpSeed: IntProperty(
+        default = 0,
+        min = -2147483647,
+        max = 2147483647)
+    stripSubdiv: IntProperty(
         default = 0,
         min = 0,
-        max = 10
-        )
+        max = 10)
+    followMesh: BoolProperty(
+        default = False)
 
 
 
@@ -400,9 +436,6 @@ def register():
         register_class(cls)
 
     bpy.types.ParticleSettings.hairStyle = PointerProperty(type=PartSettingsProperties)
-    bpy.types.ParticleSettings.tubeInterp = PointerProperty(type=PartSettingsProperties)
-    bpy.types.ParticleSettings.flatSubdiv = PointerProperty(type=PartSettingsProperties)
-        
     
 def unregister():
     from bpy.utils import unregister_class
