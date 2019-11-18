@@ -15,7 +15,6 @@ bl_info = {
     
 
 import bpy
-
 from bpy.props import (StringProperty,
                        BoolProperty,
                        IntProperty,
@@ -31,6 +30,8 @@ from bpy.types import (Panel,
                        Object,
                        )
 from enum import Enum
+from mathutils import Vector
+import random
 
 
 #----------------------------------------------------------------------------------------
@@ -191,27 +192,28 @@ def getHairFormType(obj, sepObj):
                     seamVerts[i].append(v)
                 elif v in seamVerts[i]:
                     sharedVerts = sharedVerts + 1
+        print(sharedVerts, len(seamVerts[i]))
         if sharedVerts == len(seamVerts[i]):
             loop[i] = True
         
-        allTris = getTris(obj)
-        tris = [[f for f in allTris if f in sf] for sf in sepFace]
+    allTris = getTris(obj)
+    tris = [[f for f in allTris if f in sf] for sf in sepFace]
+    
+    forms = [None for ob in seams]
+    
+    for i in range(len(tris)):
+        if len(tris[i]) == 0:
+            if loop[i]:
+                forms[i] = FormType.TUBE
+            else:
+                forms[i] = FormType.CARD
+        elif len(tris[i]) > 0:
+            if loop[i]:
+                forms[i] = FormType.CONE
+            else:
+                forms[i] = FormType.SPIKE
         
-        forms = [None for ob in seams]
-        
-        for i in range(len(tris)):
-            if len(tris[i]) == 0:
-                if loop[i]:
-                    forms[i] = FormType.TUBE
-                else:
-                    forms[i] = FormType.CARD
-            elif len(tris[i]) > 0:
-                if loop[i]:
-                    forms[i] = FormType.CONE
-                else:
-                    forms[i] = FormType.SPIKE
-        
-        return forms
+    return forms
 
 
 
@@ -256,6 +258,7 @@ class GrowHair(Operator):
         try:
             sepObj = separateObj(hairStyle.hairForm)
             formType = getHairFormType(hairStyle.hairForm, sepObj)
+            print(formType)
             loops = getLoops(hairStyle.hairForm, sepObj, formType)
             
             for ob in loops:
@@ -273,8 +276,11 @@ class GrowHair(Operator):
         
         guidesN = 0
         guideSeg = len(loops[0][0])
-        for i in range(len(loops)):
-            guidesN = guidesN + len(loops[i])
+        for i in range(len(formType)):
+            if hairStyle.followMesh or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+                guidesN = guidesN + len(loops[i])
+            else:
+                guidesN = guidesN + hairStyle.guideCount
             
         activeSysData.count = guidesN
         activeSysData.hair_step = guideSeg - 1
@@ -302,14 +308,38 @@ class GrowHair(Operator):
         depPSys = depObj.particle_systems[partSys.active_index]
         
         shift = 0
-        for i in range(len(loops)):
-            for loop in range(len(loops[i])):
-                if hairStyle.followMesh or (formType[i] == FormType.Card) or (formType[i] == FormType.SPIKE):
+        for i in range(len(formType)):
+            if hairStyle.followMesh or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+                for loop in range(len(loops[i])):
                     part = depPSys.particles[loop + shift]  
                     part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
                     for vert in range(len(loops[i][loop])):
                         part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
-            shift = shift + len(loops[i])
+                shift = shift + len(loops[i])
+                
+            else:
+                random.seed(hairStyle.interpSeed)
+                part = depPSys.particles[shift]
+                for vert in range(len(loops[i][0])):
+                    x = []
+                    y = []
+                    z = []
+                    l = len(loops[i])
+                    for loop in range(len(loops[i])):
+                        co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
+                        x.append(co.x)
+                        y.append(co.y)
+                        z.append(co.z)
+                        
+                        
+                    newPoint = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                    if vert == 0:
+                        part.location = newPoint
+                        
+                    part.hair_keys[vert].co = newPoint
+                    
+                shift = shift + hairStyle.guideCount
+                        
                 
         bpy.ops.particle.particle_edit_toggle()
         bpy.ops.particle.particle_edit_toggle()
@@ -360,7 +390,7 @@ class HairAddonPanel(Panel):
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = "Guide Count")
-        row.prop(hairStyle, "tubeInterp", text = '')
+        row.prop(hairStyle, "guideCount", text = '')
         if hairStyle.followMesh:
             row.enabled = False
         else:
@@ -403,7 +433,7 @@ class PartSettingsProperties(PropertyGroup):
     hairForm: PointerProperty(
         type = Object
         )
-    tubeInterp: IntProperty(
+    guideCount: IntProperty(
         default = 0,
         min = 0)
     interpSeed: IntProperty(
