@@ -279,9 +279,9 @@ class GrowHair(Operator):
         guidesN = 0
         guideSeg = len(loops[0][0])
         for i in range(len(formType)):
-            if hairStyle.followMesh or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+            if hairStyle.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
                 guidesN = guidesN + len(loops[i])
-            else:
+            if (formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE):
                 guidesN = guidesN + hairStyle.guideCount
             
         activeSysData.count = guidesN
@@ -311,7 +311,7 @@ class GrowHair(Operator):
         
         shift = 0
         for i in range(len(formType)):
-            if hairStyle.followMesh or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+            if hairStyle.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
                 for loop in range(len(loops[i])):
                     part = depPSys.particles[loop + shift]  
                     part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
@@ -319,7 +319,7 @@ class GrowHair(Operator):
                         part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
                 shift = shift + len(loops[i])
                 
-            else:
+            if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (hairStyle.guideCount > 0):
                 part = depPSys.particles[shift]
                 
                 #generate center hair
@@ -413,61 +413,46 @@ class HairAddonPanel(Panel):
         row.alignment = 'CENTER'
         row.label(text = 'Clump:')
         
+        row = box.row()
+        row.alignment = 'LEFT'
+        row.label(text = 'Hair Interpolation:')
+        
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = "Guide Count")
         row.prop(hairStyle, "guideCount", text = '')
-        if hairStyle.followMesh:
-            row.enabled = False
-        else:
-            row.enabled = True
+        #if hairStyle.followMesh:
+        #    row.enabled = False
+        #else:
+        #    row.enabled = True
         
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = 'Interpolation Seed')
         row.prop(hairStyle, 'interpSeed', text = '')
-        if hairStyle.followMesh:
-            row.enabled = False
-        else:
-            row.enabled = True
             
         box.row().separator()
         
         row = box.row()
-        row.alignment = 'CENTER'
+        row.alignment = 'LEFT'
         row.label(text = 'Hair Distribution:')
         
         row = box.row(align = True)
         row.alignment = 'RIGHT'
         row.label(text = 'Flat Distribution')
         row.prop(hairStyle, 'flatDist', text = '')
-        if hairStyle.followMesh:
-            row.enabled = False
-        else:
-            row.enabled = True
             
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = 'Width')
         row.prop(hairStyle, 'distWidth', text = '')
-        if hairStyle.followMesh:
-            row.enabled = False
-        else:
-            row.enabled = True
             
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = 'Sharpness')
         row.prop(hairStyle, 'distSharpness', text = '')
-        if hairStyle.followMesh:
-            row.enabled = False
-        else:
-            row.enabled = True
         
-        row = box.row(align = True)
-        row.alignment = 'RIGHT'
-        row.label(text = 'Follow Mesh')
-        row.prop(hairStyle, 'followMesh', text = '')
+        
         
         box = col.box()
         
@@ -479,6 +464,11 @@ class HairAddonPanel(Panel):
         row.alignment = 'RIGHT'
         row.label(text = 'Strip Subdiv')
         row.prop(hairStyle, "stripSubdiv", text = '')
+        
+        row = box.row(align = True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Use strip guides on tube objects')
+        row.prop(hairStyle, 'stripTube', text = '')
         
         row = col.row()
         row.operator("particle.hair_style")
@@ -503,7 +493,7 @@ class PartSettingsProperties(PropertyGroup):
         default = 0,
         min = 0,
         max = 10)
-    followMesh: BoolProperty(
+    stripTube: BoolProperty(
         default = False)
     distWidth: IntProperty(
         default = 1,
