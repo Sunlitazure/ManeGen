@@ -254,6 +254,8 @@ class GrowHair(Operator):
         activeSys = partSys[partSys.active_index]
         hairStyle = activeSys.settings.hairStyle
         
+        random.seed(hairStyle.interpSeed)
+        
         activeSysData = bpy.data.particles[partSys[partSys.active_index].settings.name]
         try:
             sepObj = separateObj(hairStyle.hairForm)
@@ -318,12 +320,11 @@ class GrowHair(Operator):
                 shift = shift + len(loops[i])
                 
             else:
-                random.seed(hairStyle.interpSeed)
                 part = depPSys.particles[shift]
+                
+                #generate center hair
                 for vert in range(len(loops[i][0])):
-                    x = []
-                    y = []
-                    z = []
+                    x, y, z = [], [], []
                     l = len(loops[i])
                     for loop in range(len(loops[i])):
                         co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
@@ -331,14 +332,39 @@ class GrowHair(Operator):
                         y.append(co.y)
                         z.append(co.z)
                         
-                        
                     newPoint = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
                     if vert == 0:
                         part.location = newPoint
                         
                     part.hair_keys[vert].co = newPoint
-                    
+                
+                #generate interpolated hair
+                for j in range(1, hairStyle.guideCount):
+                    part = depPSys.particles[shift + j]
+                    distWidth = 11 - hairStyle.distWidth
+                    distSharpness = hairStyle.distSharpness
+                    refCount = random.randint(distWidth, distSharpness)
+                    refLoops = []
+                    for k in range(refCount):
+                        refLoops.append(random.randint(0, len(loops[i])-1))
+                        
+                    for vert in range(len(loops[i][0])):
+                        x, y, z = [], [], []
+                        l = refCount
+                        for k in refLoops:
+                              co = hairStyle.hairForm.data.vertices[loops[i][k][vert]].co
+                              x.append(co.x)
+                              y.append(co.y)
+                              z.append(co.z)
+                              
+                        newPoint = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                        if vert == 0:
+                            part.location = newPoint
+                        
+                        part.hair_keys[vert].co = newPoint
+                                    
                 shift = shift + hairStyle.guideCount
+                    
                         
                 
         bpy.ops.particle.particle_edit_toggle()
@@ -404,6 +430,39 @@ class HairAddonPanel(Panel):
             row.enabled = False
         else:
             row.enabled = True
+            
+        box.row().separator()
+        
+        row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text = 'Hair Distribution:')
+        
+        row = box.row(align = True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Flat Distribution')
+        row.prop(hairStyle, 'flatDist', text = '')
+        if hairStyle.followMesh:
+            row.enabled = False
+        else:
+            row.enabled = True
+            
+        row = box.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Width')
+        row.prop(hairStyle, 'distWidth', text = '')
+        if hairStyle.followMesh:
+            row.enabled = False
+        else:
+            row.enabled = True
+            
+        row = box.split(factor = .5, align=True)
+        row.alignment = 'RIGHT'
+        row.label(text = 'Sharpness')
+        row.prop(hairStyle, 'distSharpness', text = '')
+        if hairStyle.followMesh:
+            row.enabled = False
+        else:
+            row.enabled = True
         
         row = box.row(align = True)
         row.alignment = 'RIGHT'
@@ -446,6 +505,17 @@ class PartSettingsProperties(PropertyGroup):
         max = 10)
     followMesh: BoolProperty(
         default = False)
+    distWidth: IntProperty(
+        default = 1,
+        min = 1,
+        max = 10)
+    distSharpness: IntProperty(
+        default = 2,
+        min = 1,
+        max = 10)
+    flatDist: BoolProperty(
+        default = False)
+        
 
 
 
