@@ -85,10 +85,11 @@ def getLoops(obj, sepObj, formType):
             if e not in edgesWithVerts[v]:
                 edgesWithVerts[v].append(e)
         
-    seams = getSeams(obj)
+    allSeams = getSeams(obj)
+    seams = [[e for e in allSeams if e.vertices[0] in v] for v in sepVert]
     loopVerts = [[] for ob in formType]
-    for i in range(len(formType)):
-        objSeams = [e for e in seams if e.index in sepEdge[i]]
+    for i in range(len(loopVerts)):
+        objSeams = seams[i]
         for edge in objSeams:
             for vert in edge.vertices:
                 if [vert] not in loopVerts[i]:
@@ -124,6 +125,31 @@ def getLoops(obj, sepObj, formType):
         if (formType[i] == FormType.CONE) or (formType[i] == FormType.SPIKE):
             for j in range(1, len(loopVerts[i])):
                 loopVerts[i][j].append(loopVerts[i][0][-1])
+    
+    newLoopVerts = [[obj[0]] for obj in loopVerts]       
+    for i in range(len(loopVerts)):
+        if (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+            for j in range(len(loopVerts[i])):
+                if len(edgesWithVerts[loopVerts[i][j][0]]) < 3:
+                    newLoopVerts[i][0] = loopVerts[i][j]
+                    break
+        
+        for j in range(len(loopVerts[i])):
+            for seam in seams[i]:
+                if (newLoopVerts[i][-1][0] in seam.vertices) and (len(newLoopVerts[i]) < 2 or (newLoopVerts[i][-2][0] not in seam.vertices)):
+                    for vert in seam.vertices:
+                        if vert != newLoopVerts[i][-1][0]:
+                            newVert = vert
+                            break
+                    for loop in loopVerts[i]:
+                        if (loop[0] == vert) and (loop[0] != newLoopVerts[i][0][0]):
+                            newLoopVerts[i].append(loop)
+                            break
+                        
+            if len(newLoopVerts[i]) == len(loopVerts[i]):
+                break
+    
+    loopVerts = newLoopVerts
             
     return loopVerts #array of vertex index arrays
 
@@ -192,7 +218,7 @@ def getHairFormType(obj, sepObj):
                     seamVerts[i].append(v)
                 elif v in seamVerts[i]:
                     sharedVerts = sharedVerts + 1
-        print(sharedVerts, len(seamVerts[i]))
+                    
         if sharedVerts == len(seamVerts[i]):
             loop[i] = True
         
@@ -260,7 +286,6 @@ class GrowHair(Operator):
         try:
             sepObj = separateObj(hairStyle.hairForm)
             formType = getHairFormType(hairStyle.hairForm, sepObj)
-            print(formType)
             loops = getLoops(hairStyle.hairForm, sepObj, formType)
             
             for ob in loops:
@@ -323,6 +348,7 @@ class GrowHair(Operator):
                 part = depPSys.particles[shift]
                 
                 #generate center hair
+                centerHair = []
                 for vert in range(len(loops[i][0])):
                     x, y, z = [], [], []
                     l = len(loops[i])
@@ -336,32 +362,42 @@ class GrowHair(Operator):
                     if vert == 0:
                         part.location = newPoint
                         
+                    centerHair.append(newPoint)
                     part.hair_keys[vert].co = newPoint
                 
                 #generate interpolated hair
-                for j in range(1, hairStyle.guideCount):
-                    part = depPSys.particles[shift + j]
-                    distWidth = 11 - hairStyle.distWidth
-                    distSharpness = hairStyle.distSharpness
-                    refCount = random.randint(distWidth, distSharpness)
-                    refLoops = []
-                    for k in range(refCount):
-                        refLoops.append(random.randint(0, len(loops[i])-1))
+                if not hairStyle.flatDist:
+                    for j in range(1, hairStyle.guideCount):
+                        part = depPSys.particles[shift + j]
+                        distMaxWidth = 11 - hairStyle.distWidth
+                        distWidth = 11 - hairStyle.distSharpness
                         
-                    for vert in range(len(loops[i][0])):
-                        x, y, z = [], [], []
-                        l = refCount
-                        for k in refLoops:
-                              co = hairStyle.hairForm.data.vertices[loops[i][k][vert]].co
-                              x.append(co.x)
-                              y.append(co.y)
-                              z.append(co.z)
-                              
-                        newPoint = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
-                        if vert == 0:
-                            part.location = newPoint
+                        if distWidth < distMaxWidth:
+                            raise Exception("Width must be equal to or less than Max Width")
+                            
                         
-                        part.hair_keys[vert].co = newPoint
+                        refCount = random.randint(distMaxWidth, distWidth)
+                        refLoops = []
+                        for k in range(refCount):
+                            refLoops.append(random.randint(0, len(loops[i])-1))
+                            
+                        for vert in range(len(loops[i][0])):
+                            x, y, z = [], [], []
+                            l = refCount
+                            for k in refLoops:
+                                  co = hairStyle.hairForm.data.vertices[loops[i][k][vert]].co
+                                  x.append(co.x)
+                                  y.append(co.y)
+                                  z.append(co.z)
+                                  
+                            newPoint = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                            if vert == 0:
+                                part.location = newPoint
+                            
+                            part.hair_keys[vert].co = newPoint
+                            
+                else:
+                     Write flat distribution interpolation generator here!!!!!!!
                                     
                 shift = shift + hairStyle.guideCount
                     
@@ -441,17 +477,27 @@ class HairAddonPanel(Panel):
         row.alignment = 'RIGHT'
         row.label(text = 'Flat Distribution')
         row.prop(hairStyle, 'flatDist', text = '')
-            
-        row = box.split(factor = .5, align=True)
-        row.alignment = 'RIGHT'
-        row.label(text = 'Width')
-        row.prop(hairStyle, 'distWidth', text = '')
-            
-        row = box.split(factor = .5, align=True)
-        row.alignment = 'RIGHT'
-        row.label(text = 'Sharpness')
-        row.prop(hairStyle, 'distSharpness', text = '')
         
+        if not hairStyle.flatDist:
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Width')
+            row.prop(hairStyle, 'distSharpness', text = '')
+                
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Max Width')
+            row.prop(hairStyle, 'distWidth', text = '')
+            
+            if hairStyle.distWidth < hairStyle.distSharpness:
+                row = box.row()
+                row.alignment = 'RIGHT'
+                row.label(text = 'Width > Max Width', icon = "ERROR")
+        else:
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Level')
+            row.prop(hairStyle, 'distLevel', text = '')
         
         
         box = col.box()
@@ -505,6 +551,10 @@ class PartSettingsProperties(PropertyGroup):
         max = 10)
     flatDist: BoolProperty(
         default = False)
+    distLevel: IntProperty(
+        default = 2,
+        min = 0,
+        max = 10)
         
 
 
