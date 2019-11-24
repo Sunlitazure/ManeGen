@@ -32,6 +32,19 @@ from bpy.types import (Panel,
 from enum import Enum
 from mathutils import Vector
 import random
+from math import sqrt
+
+
+
+#
+#
+# TODO: symmetrically place uniform distribution around circle
+# TODO: implement strip subdive
+#
+#
+
+
+
 
 
 #----------------------------------------------------------------------------------------
@@ -280,8 +293,6 @@ class GrowHair(Operator):
         activeSys = partSys[partSys.active_index]
         hairStyle = activeSys.settings.hairStyle
         
-        random.seed(hairStyle.interpSeed)
-        
         activeSysData = bpy.data.particles[partSys[partSys.active_index].settings.name]
         try:
             sepObj = separateObj(hairStyle.hairForm)
@@ -366,7 +377,8 @@ class GrowHair(Operator):
                     part.hair_keys[vert].co = newPoint
                 
                 #generate interpolated hair
-                if not hairStyle.flatDist:
+                if not hairStyle.uniDist:
+                    random.seed(hairStyle.distSeed)
                     for j in range(1, hairStyle.guideCount):
                         part = depPSys.particles[shift + j]
                         distMaxWidth = 11 - hairStyle.distWidth
@@ -390,13 +402,16 @@ class GrowHair(Operator):
                                   y.append(co.y)
                                   z.append(co.z)
                                   
-                            newPoint = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                            newPoint = Vector(((sum(x)/l),
+                                               (sum(y)/l),
+                                               (sum(z)/l)))
                             if vert == 0:
                                 part.location = newPoint
                             
                             part.hair_keys[vert].co = newPoint
                             
                 else:
+                    random.seed(hairStyle.jitterSeed)
                     minHairPerDiv = int((hairStyle.guideCount-1) / len(loops[i]))
                     extraHairs = (hairStyle.guideCount-1) % len(loops[i])
                     
@@ -408,15 +423,22 @@ class GrowHair(Operator):
                         for k in range(minHairPerDiv + extra):
                             part = depPSys.particles[shift + localShift]
                             localShift = localShift + 1
+                            
+                            randX, randY, randZ = (random.random()-.5)*2, (random.random()-.5)*2, (random.random()-.5)*2 
                             for vert in range(len(loops[i][0])):
                                 co = hairStyle.hairForm.data.vertices[
                                                     loops[i][int((j-1))][vert]
                                                     ].co
+                                
+                                distVector = co - centerHair[vert]
+                                randScale = sqrt(distVector.x**2 + distVector.y**2 + distVector.z**2)
+                                jitter = hairStyle.jitter * randScale
+                                
                                 co = co * (k + 1)
                                 center = centerHair[vert] * (minHairPerDiv + extra - k)
-                                newPoint = Vector((sum([co.x, center.x])/(minHairPerDiv+extra+1),
-                                                   sum([co.y, center.y])/(minHairPerDiv+extra+1),
-                                                   sum([co.z, center.z])/(minHairPerDiv+extra+1)))
+                                newPoint = Vector((sum([co.x, center.x])/(minHairPerDiv+extra+1) + (randX*jitter),
+                                                   sum([co.y, center.y])/(minHairPerDiv+extra+1) + (randY*jitter),
+                                                   sum([co.z, center.z])/(minHairPerDiv+extra+1) + (randZ*jitter)))
                                                    
                                 if vert == 0:
                                     part.location = newPoint
@@ -485,11 +507,6 @@ class HairAddonPanel(Panel):
         #    row.enabled = False
         #else:
         #    row.enabled = True
-        
-        row = box.split(factor = .5, align=True)
-        row.alignment = 'RIGHT'
-        row.label(text = 'Interpolation Seed')
-        row.prop(hairStyle, 'interpSeed', text = '')
             
         box.row().separator()
         
@@ -499,10 +516,10 @@ class HairAddonPanel(Panel):
         
         row = box.row(align = True)
         row.alignment = 'RIGHT'
-        row.label(text = 'Flat Distribution')
-        row.prop(hairStyle, 'flatDist', text = '')
+        row.label(text = 'Uniform Distribution')
+        row.prop(hairStyle, 'uniDist', text = '')
         
-        if not hairStyle.flatDist:
+        if not hairStyle.uniDist:            
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Width')
@@ -517,6 +534,22 @@ class HairAddonPanel(Panel):
                 row = box.row()
                 row.alignment = 'RIGHT'
                 row.label(text = 'Width > Max Width', icon = "ERROR")
+                
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Distribution Seed')
+            row.prop(hairStyle, 'distSeed', text = '')
+                
+        else:
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Jitter')
+            row.prop(hairStyle, 'jitter', text = '')
+            
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Jitter Seed')
+            row.prop(hairStyle, 'jitterSeed', text = '')
         
         
         box = col.box()
@@ -550,7 +583,7 @@ class PartSettingsProperties(PropertyGroup):
     guideCount: IntProperty(
         default = 0,
         min = 0)
-    interpSeed: IntProperty(
+    distSeed: IntProperty(
         default = 0,
         min = -2147483647,
         max = 2147483647)
@@ -568,8 +601,15 @@ class PartSettingsProperties(PropertyGroup):
         default = 2,
         min = 1,
         max = 10)
-    flatDist: BoolProperty(
+    uniDist: BoolProperty(
         default = False)
+    jitterSeed: IntProperty(
+        default = 0,
+        min = -2147483647,
+        max = 2147483647)
+    jitter: FloatProperty(
+        min = 0,
+        step = 1)
         
 
 
