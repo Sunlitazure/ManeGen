@@ -397,7 +397,31 @@ class GrowHair(Operator):
                             part.hair_keys[vert].co = newPoint
                             
                 else:
-                     Write flat distribution interpolation generator here!!!!!!!
+                    minHairPerDiv = int((hairStyle.guideCount-1) / len(loops[i]))
+                    extraHairs = (hairStyle.guideCount-1) % len(loops[i])
+                    
+                    localShift = 1
+                    for j in range(0, len(loops[i])):
+                        extra = 0
+                        if j < extraHairs:
+                            extra = 1
+                        for k in range(minHairPerDiv + extra):
+                            part = depPSys.particles[shift + localShift]
+                            localShift = localShift + 1
+                            for vert in range(len(loops[i][0])):
+                                co = hairStyle.hairForm.data.vertices[
+                                                    loops[i][int((j-1))][vert]
+                                                    ].co
+                                co = co * (k + 1)
+                                center = centerHair[vert] * (minHairPerDiv + extra - k)
+                                newPoint = Vector((sum([co.x, center.x])/(minHairPerDiv+extra+1),
+                                                   sum([co.y, center.y])/(minHairPerDiv+extra+1),
+                                                   sum([co.z, center.z])/(minHairPerDiv+extra+1)))
+                                                   
+                                if vert == 0:
+                                    part.location = newPoint
+                                    
+                                part.hair_keys[vert].co = newPoint
                                     
                 shift = shift + hairStyle.guideCount
                     
@@ -493,11 +517,6 @@ class HairAddonPanel(Panel):
                 row = box.row()
                 row.alignment = 'RIGHT'
                 row.label(text = 'Width > Max Width', icon = "ERROR")
-        else:
-            row = box.split(factor = .5, align=True)
-            row.alignment = 'RIGHT'
-            row.label(text = 'Level')
-            row.prop(hairStyle, 'distLevel', text = '')
         
         
         box = col.box()
@@ -551,10 +570,6 @@ class PartSettingsProperties(PropertyGroup):
         max = 10)
     flatDist: BoolProperty(
         default = False)
-    distLevel: IntProperty(
-        default = 2,
-        min = 0,
-        max = 10)
         
 
 
