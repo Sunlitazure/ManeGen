@@ -1,4 +1,4 @@
-#Most credit goes to Jandals @ https://github.com/Jandals
+# Most credit goes to Jandals @ https://github.com/Jandals
 
 
 bl_info = {
@@ -32,14 +32,16 @@ from bpy.types import (Panel,
 from enum import Enum
 from mathutils import Vector
 import random
-from math import sqrt
+from math import (sqrt,
+                  floor
+                  )
 
 
 
 #
 #
-# TODO: symmetrically place uniform distribution around circle
-# TODO: implement strip subdive
+# TODO: Symmetrically place uniform interpolation around circle
+# TODO: Implement strip subdiv
 #
 #
 
@@ -416,6 +418,35 @@ class GrowHair(Operator):
                     extraHairs = (hairStyle.guideCount-1) % len(loops[i])
                     
                     localShift = 1
+                    
+                    sortLoopMap = [[j for j in range(floor(len(loops[i])/2))]]
+                    while len(sortLoopMap[-1]) > 3:
+                        tempLoopMap = []
+                        for j in sortLoopMap:
+                            tempLoopMap.append(j[:-floor(len(j)/2)])
+                            tempLoopMap.append(j[floor((len(j)+1)/2):])
+                        sortLoopMap = tempLoopMap
+                        
+                    while len(sortLoopMap[0]) < floor(len(loops[i])/2):
+                        tempLoopMap = []
+                        for j in range(floor(len(sortLoopMap)/2)):
+                            tempLoopMap.append([])
+                            for k in range(len(sortLoopMap[j*2])):
+                                tempLoopMap[-1].append(sortLoopMap[j*2][k])
+                                if  k < len(sortLoopMap[j*2+1]): 
+                                    tempLoopMap[-1].append(sortLoopMap[j*2+1][k])
+                        sortLoopMap = tempLoopMap
+                    
+                    sortLoopMap = sortLoopMap[0]
+                    tempLoopMap = []
+                    for j in range(len(sortLoopMap)):
+                        tempLoopMap.append(sortLoopMap[j])
+                        tempLoopMap.append(sortLoopMap[j] + floor(len(loops[i])/2))
+                    sortLoopMap = tempLoopMap
+                        
+                    if len(loops[i]) % 2:
+                        sortLoopMap.append(len(loops[i])-1)
+                        
                     for j in range(0, len(loops[i])):
                         extra = 0
                         if j < extraHairs:
@@ -427,7 +458,7 @@ class GrowHair(Operator):
                             randX, randY, randZ = (random.random()-.5)*2, (random.random()-.5)*2, (random.random()-.5)*2 
                             for vert in range(len(loops[i][0])):
                                 co = hairStyle.hairForm.data.vertices[
-                                                    loops[i][int((j-1))][vert]
+                                                    loops[i][sortLoopMap[j]][vert]
                                                     ].co
                                 
                                 distVector = co - centerHair[vert]
