@@ -40,12 +40,10 @@ from math import (sqrt,
 
 #
 #
-# TODO: Symmetrically place uniform interpolation around circle
-# TODO: Implement strip subdiv
+# TODO: rename project to Blend_Salon or something
+# TODO: Smooth out strip subdivision
 #
 #
-
-
 
 
 
@@ -318,7 +316,9 @@ class GrowHair(Operator):
         guideSeg = len(loops[0][0])
         for i in range(len(formType)):
             if hairStyle.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
-                guidesN = guidesN + len(loops[i])
+                guidesN = guidesN + len(loops[i]) + ((len(loops[i])-1) * hairStyle.stripSubdiv) + \
+                          (hairStyle.stripTube and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE))) * \
+                          hairStyle.stripSubdiv
             if (formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE):
                 guidesN = guidesN + hairStyle.guideCount
             
@@ -355,7 +355,27 @@ class GrowHair(Operator):
                     part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
                     for vert in range(len(loops[i][loop])):
                         part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
-                shift = shift + len(loops[i])
+                
+                loopsMap = [j for j in range(len(loops[i]))]
+                if (formType[i] == FormType.CONE) or (formType[i] == FormType.TUBE):
+                    loopsMap.append(loopsMap[0])
+                     
+                for loop in loopsMap[:-1]:
+                    for j in range(hairStyle.stripSubdiv):
+                        part = depPSys.particles[shift + len(loops[i]) + loop*hairStyle.stripSubdiv + j]
+
+                        for vert in range(len(loops[i][loop])):
+                            co = (hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co * (j + 1) + \
+                                  hairStyle.hairForm.data.vertices[loops[i][loopsMap[loop+1]][vert]].co * \
+                                 (hairStyle.stripSubdiv - j)) / (hairStyle.stripSubdiv + 1)
+                                 
+                            if vert == 0:
+                                part.location = co
+
+                            part.hair_keys[vert].co = co
+                            
+                
+                shift = shift + len(loops[i]) + (len(loopsMap)-1) * hairStyle.stripSubdiv
                 
             if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (hairStyle.guideCount > 0):
                 part = depPSys.particles[shift]
@@ -621,7 +641,7 @@ class PartSettingsProperties(PropertyGroup):
     stripSubdiv: IntProperty(
         default = 0,
         min = 0,
-        max = 10)
+        max = 20)
     stripTube: BoolProperty(
         default = False)
     distWidth: IntProperty(
