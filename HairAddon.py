@@ -40,8 +40,15 @@ from math import (sqrt,
 
 #
 #
-# TODO: rename project to Blend_Salon or something
+# TODO: allow inverse distribution by increasing chance of selecting ref loops closer to loop
+# TODO: Handle concave meshes
+#       use average of loops on either side as the temp centerpoint, then move on to next n loops
+#       after adding enough guides, replacing the og loop with the previous centerpoint.
+#       ( (#loops/4) / guidesPerLoop ) = number of loops to move down for the next temp centerpoint
+# TODO: Rename project to Blend_Salon or something
 # TODO: Smooth out strip subdivision
+# TODO: Make code readable
+# TODO: refactor code so it doesn't suck anymore
 #
 #
 
@@ -324,7 +331,7 @@ class GrowHair(Operator):
             
         activeSysData.count = guidesN
         activeSysData.hair_step = guideSeg - 1
-        activeSysData.display_step = 4
+        activeSysData.display_step = 6
             
         bpy.ops.particle.particle_edit_toggle()
         bpy.context.scene.tool_settings.particle_edit.tool = 'COMB'
