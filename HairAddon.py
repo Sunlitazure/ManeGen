@@ -35,6 +35,7 @@ import random
 from math import (sqrt,
                   floor
                   )
+import numpy as np
 
 
 
@@ -384,7 +385,7 @@ class GrowHair(Operator):
                 
                 shift = shift + len(loops[i]) + (len(loopsMap)-1) * hairStyle.stripSubdiv
                 
-            if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (hairStyle.guideCount > 0):
+            if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (hairStyle.guideCount > 0) and ((hairStyle.dist == 'normal') or (hairStyle.dist == 'const')):
                 part = depPSys.particles[shift]
                 
                 #generate center hair
@@ -406,7 +407,7 @@ class GrowHair(Operator):
                     part.hair_keys[vert].co = newPoint
                 
                 #generate interpolated hair
-                if not hairStyle.uniDist:
+                if hairStyle.dist == 'normal':
                     random.seed(hairStyle.distSeed)
                     for j in range(1, hairStyle.guideCount):
                         part = depPSys.particles[shift + j]
@@ -439,7 +440,7 @@ class GrowHair(Operator):
                             
                             part.hair_keys[vert].co = newPoint
                             
-                else:
+                elif hairStyle.dist == 'const':
                     random.seed(hairStyle.jitterSeed)
                     minHairPerDiv = int((hairStyle.guideCount-1) / len(loops[i]))
                     extraHairs = (hairStyle.guideCount-1) % len(loops[i])
@@ -502,8 +503,41 @@ class GrowHair(Operator):
                                     part.location = newPoint
                                     
                                 part.hair_keys[vert].co = newPoint
-                                    
+                                
                 shift = shift + hairStyle.guideCount
+                                
+            elif (hairStyle.dist == 'complex') and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)):
+                for j in range(len(loops[i][0])): #loop through vertex layers
+                    x, y, z = [], [], []
+                    l = len(loops[i])
+                    for loop in range(len(loops[i])):
+                        co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
+                        x.append(co.x)
+                        y.append(co.y)
+                        z.append(co.z)
+                        
+                    center = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                    
+                    # Set x,y,z values in reference to the center of mass for the given ring on the hair form mesh
+                    x = [k-center.x for k in x]
+                    y = [k-center.y for k in y]
+                    z = [k-center.z for k in z]
+                    
+                    need to loop with x and y taking turns in zs spot. Pick one with biggest D value.
+                    Revert plane back to x,y,z at end regardless of which was picked
+                    
+                    # Equation for fitting a plane to data points
+                    # https://www.ilikebigbits.com/2015_03_04_plane_from_points.html
+                    planeMatrix = np.matrix([x, y, z])
+                    planeZ = np.matrix(z).getT() * -1
+                    cross = (planeMatrix.dot(planeMatrix.getT()))[:2,:2]
+                    crossZ = (planeMatrix.dot(planeZ))[:2]
+                    D = cross[0,0]*cross[1,1] - cross[0,1]*cross[1,0]
+                    a = crossZ[0,0]*cross[1,1] - cross[0,1]*crossZ[1,0]
+                    b = cross[0,0]*crossZ[1,0] - crossZ[0,0]*cross[1,0]
+                    plane = Vector((a,b,D)).normalized()
+                    print(plane)
+            
                     
                         
                 
@@ -551,7 +585,7 @@ class HairAddonPanel(Panel):
         
         row = box.row()
         row.alignment = 'CENTER'
-        row.label(text = 'Clump:')
+        row.label(text = 'Volume:')
         
         row = box.row()
         row.alignment = 'LEFT'
@@ -574,10 +608,10 @@ class HairAddonPanel(Panel):
         
         row = box.row(align = True)
         row.alignment = 'RIGHT'
-        row.label(text = 'Uniform Distribution')
-        row.prop(hairStyle, 'uniDist', text = '')
+        row.label(text = 'Distribution')
+        row.prop(hairStyle, 'dist', text = '')
         
-        if not hairStyle.uniDist:            
+        if hairStyle.dist == 'normal':            
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Width')
@@ -598,7 +632,7 @@ class HairAddonPanel(Panel):
             row.label(text = 'Distribution Seed')
             row.prop(hairStyle, 'distSeed', text = '')
                 
-        else:
+        elif hairStyle.dist == 'const':
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Jitter')
@@ -614,7 +648,7 @@ class HairAddonPanel(Panel):
         
         row = box.row()
         row.alignment = 'CENTER'
-        row.label(text = 'Strip:')
+        row.label(text = 'Edge:')
         
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
@@ -635,6 +669,12 @@ class HairAddonPanel(Panel):
 #                    Hair System variables
 #-----------------------------------------------------------------------
 class PartSettingsProperties(PropertyGroup):
+    options = [
+            ('normal', 'Avg Gaussian', '', '', 0),
+            ('const', 'Avg Const', '', '', 1),
+            ('complex', 'Complex Vector', '', '', 2),
+            ]
+    
     hairForm: PointerProperty(
         type = Object
         )
@@ -659,8 +699,6 @@ class PartSettingsProperties(PropertyGroup):
         default = 2,
         min = 1,
         max = 10)
-    uniDist: BoolProperty(
-        default = False)
     jitterSeed: IntProperty(
         default = 0,
         min = -2147483647,
@@ -668,7 +706,9 @@ class PartSettingsProperties(PropertyGroup):
     jitter: FloatProperty(
         min = 0,
         step = 1)
-        
+    dist: EnumProperty(
+        items = options
+        )
 
 
 
