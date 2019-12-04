@@ -508,35 +508,59 @@ class GrowHair(Operator):
                                 
             elif (hairStyle.dist == 'complex') and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)):
                 for j in range(len(loops[i][0])): #loop through vertex layers
-                    x, y, z = [], [], []
-                    l = len(loops[i])
-                    for loop in range(len(loops[i])):
-                        co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
-                        x.append(co.x)
-                        y.append(co.y)
-                        z.append(co.z)
+                    
+                    planeVectors = []
+                    
+                    for k in range(3):
+                        x, y, z = [], [], []
+                        l = len(loops[i])
+                        for loop in range(len(loops[i])): #loop through loops
+                            co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
+                            x.append(co.x)
+                            y.append(co.y)
+                            z.append(co.z)
+                            
+                        center = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
                         
-                    center = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                        # Set x,y,z values in reference to the center of mass for the given ring on the hair form mesh
+                        x = [k-center.x for k in x]
+                        y = [k-center.y for k in y]
+                        z = [k-center.z for k in z]
+                        
+                        if k == 0:
+                            temp = z
+                            z = x
+                            x = temp
+                        if k == 1:
+                            temp = z
+                            z = y
+                            y = temp
+                        
+                        # Equation for fitting a plane to data points
+                        # https://www.ilikebigbits.com/2015_03_04_plane_from_points.html
+                        planeMatrix = np.matrix([x, y, z])
+                        planeZ = np.matrix(z).getT() * -1
+                        cross = (planeMatrix.dot(planeMatrix.getT()))[:2,:2]
+                        crossZ = (planeMatrix.dot(planeZ))[:2]
+                        D = cross[0,0]*cross[1,1] - cross[0,1]*cross[1,0]
+                        a = crossZ[0,0]*cross[1,1] - cross[0,1]*crossZ[1,0]
+                        b = cross[0,0]*crossZ[1,0] - crossZ[0,0]*cross[1,0]
+                        
+                        if k == 0:
+                            planeVectors.append( (D,b,a) )
+                        elif k == 1:
+                            planeVectors.append( (a,D,b) )
+                        else:
+                            planeVectors.append( (a,b,D) )
+                         
+                    index = 0
+                    print(planeVectors)
+                    for k in range(1,3):
+                        if planeVectors[k][k] > planeVectors[index][index]:
+                            index = k
                     
-                    # Set x,y,z values in reference to the center of mass for the given ring on the hair form mesh
-                    x = [k-center.x for k in x]
-                    y = [k-center.y for k in y]
-                    z = [k-center.z for k in z]
-                    
-                    need to loop with x and y taking turns in zs spot. Pick one with biggest D value.
-                    Revert plane back to x,y,z at end regardless of which was picked
-                    
-                    # Equation for fitting a plane to data points
-                    # https://www.ilikebigbits.com/2015_03_04_plane_from_points.html
-                    planeMatrix = np.matrix([x, y, z])
-                    planeZ = np.matrix(z).getT() * -1
-                    cross = (planeMatrix.dot(planeMatrix.getT()))[:2,:2]
-                    crossZ = (planeMatrix.dot(planeZ))[:2]
-                    D = cross[0,0]*cross[1,1] - cross[0,1]*cross[1,0]
-                    a = crossZ[0,0]*cross[1,1] - cross[0,1]*crossZ[1,0]
-                    b = cross[0,0]*crossZ[1,0] - crossZ[0,0]*cross[1,0]
-                    plane = Vector((a,b,D)).normalized()
-                    print(plane)
+                    plane = Vector(planeVectors[k]).normalized()
+
             
                     
                         
@@ -614,18 +638,18 @@ class HairAddonPanel(Panel):
         if hairStyle.dist == 'normal':            
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
-            row.label(text = 'Width')
+            row.label(text = 'Avg Width')
             row.prop(hairStyle, 'distSharpness', text = '')
                 
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
-            row.label(text = 'Max Width')
+            row.label(text = 'Outer Width')
             row.prop(hairStyle, 'distWidth', text = '')
             
             if hairStyle.distWidth < hairStyle.distSharpness:
                 row = box.row()
                 row.alignment = 'RIGHT'
-                row.label(text = 'Width > Max Width', icon = "ERROR")
+                row.label(text = 'Avg Width > Max Width', icon = "ERROR")
                 
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
