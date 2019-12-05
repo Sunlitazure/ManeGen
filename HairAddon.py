@@ -559,10 +559,34 @@ class GrowHair(Operator):
                         if planeVectors[k][k] > planeVectors[index][index]:
                             index = k
                     
-                    plane = Vector(planeVectors[k]).normalized()
-
-            
+                    planeNormal = Vector(planeVectors[k]).normalized()
                     
+                    def moveToPlane(n, cpt, pt):
+                        #find if vector between point and new point on plane (Vp-p) is parallel with plane normal (N)
+                        #by taking cross product of vector Vp-p and normal N such that
+                        #               Vp-p X N = (0,0,0)
+                        #find if vector between plane center and new point on plane (Vc-p) is orthogonal to normal
+                        #by taking dot product of vectr Vc-p and normal N such that
+                        #               Vc-p . N = 0
+                        pt = pt - cpt #set the point being moved to plane in coordinates shifted to plane center
+                        
+                        ptOnPlaneY = (-pt.x*n.y*n.x + pt.y*n.x**2 + pt.y*n.z**2 - pt.y*n.y*n.z)\
+                                     /(n.x**2 + n.y**2 + n.z**2)
+                        
+                        ptOnPlaneZ = (-pt.y*n.z + pt.z*n.y + ptOnPlaneY*n.z)\
+                                     /n.y
+                                     
+                        ptOnPlaneX = (-pt.x*n.y + pt.y*n.x + ptOnPlaneY*n.x)\
+                                     /n.y
+
+                        return Vector((ptOnPlaneX, ptOnPlaneY, ptOnPlaneZ))
+                    
+                    
+                    polygon = [] #create a flat polygon out of the given layer of the hair form mesh
+                    for loop in range(len(loops[i])): #loop through loops
+                            co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
+                            coOnPlane = moveToPlane(planeNormal, center, co)
+                            polygon.append(coOnPlane)
                         
                 
         bpy.ops.particle.particle_edit_toggle()
