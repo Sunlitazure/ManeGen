@@ -33,7 +33,10 @@ from enum import Enum
 from mathutils import Vector
 import random
 from math import (sqrt,
-                  floor
+                  floor,
+                  acos,
+                  cos,
+                  sin
                   )
 import numpy as np
 
@@ -509,57 +512,58 @@ class GrowHair(Operator):
             elif (hairStyle.dist == 'complex') and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)):
                 for j in range(len(loops[i][0])): #loop through vertex layers
                     
-                    planeVectors = []
-                    
-                    for k in range(3):
-                        x, y, z = [], [], []
-                        l = len(loops[i])
-                        for loop in range(len(loops[i])): #loop through loops
-                            co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
-                            x.append(co.x)
-                            y.append(co.y)
-                            z.append(co.z)
+                    def getPlaneNormal():
+                        planeVectors = []
+                        for k in range(3):
+                            x, y, z = [], [], []
+                            l = len(loops[i])
+                            for loop in range(len(loops[i])): #loop through loops
+                                co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
+                                x.append(co.x)
+                                y.append(co.y)
+                                z.append(co.z)
+                                
+                            center = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
                             
-                        center = Vector((sum(x)/l, sum(y)/l, sum(z)/l))
+                            # Set x,y,z values in reference to the center of mass for the given ring on the hair form mesh
+                            x = [k-center.x for k in x]
+                            y = [k-center.y for k in y]
+                            z = [k-center.z for k in z]
+                            
+                            if k == 0:
+                                temp = z
+                                z = x
+                                x = temp
+                            if k == 1:
+                                temp = z
+                                z = y
+                                y = temp
+                            
+                            # Equation for fitting a plane to data points
+                            # https://www.ilikebigbits.com/2015_03_04_plane_from_points.html
+                            planeMatrix = np.matrix([x, y, z])
+                            planeZ = np.matrix(z).getT() * -1
+                            cross = (planeMatrix.dot(planeMatrix.getT()))[:2,:2]
+                            crossZ = (planeMatrix.dot(planeZ))[:2]
+                            D = cross[0,0]*cross[1,1] - cross[0,1]*cross[1,0]
+                            a = crossZ[0,0]*cross[1,1] - cross[0,1]*crossZ[1,0]
+                            b = cross[0,0]*crossZ[1,0] - crossZ[0,0]*cross[1,0]
+                            
+                            if k == 0:
+                                planeVectors.append( (D,b,a) )
+                            elif k == 1:
+                                planeVectors.append( (a,D,b) )
+                            else:
+                                planeVectors.append( (a,b,D) )
+                             
+                        index = 0
+                        for k in range(1,3):
+                            if planeVectors[k][k] > planeVectors[index][index]:
+                                index = k
                         
-                        # Set x,y,z values in reference to the center of mass for the given ring on the hair form mesh
-                        x = [k-center.x for k in x]
-                        y = [k-center.y for k in y]
-                        z = [k-center.z for k in z]
-                        
-                        if k == 0:
-                            temp = z
-                            z = x
-                            x = temp
-                        if k == 1:
-                            temp = z
-                            z = y
-                            y = temp
-                        
-                        # Equation for fitting a plane to data points
-                        # https://www.ilikebigbits.com/2015_03_04_plane_from_points.html
-                        planeMatrix = np.matrix([x, y, z])
-                        planeZ = np.matrix(z).getT() * -1
-                        cross = (planeMatrix.dot(planeMatrix.getT()))[:2,:2]
-                        crossZ = (planeMatrix.dot(planeZ))[:2]
-                        D = cross[0,0]*cross[1,1] - cross[0,1]*cross[1,0]
-                        a = crossZ[0,0]*cross[1,1] - cross[0,1]*crossZ[1,0]
-                        b = cross[0,0]*crossZ[1,0] - crossZ[0,0]*cross[1,0]
-                        
-                        if k == 0:
-                            planeVectors.append( (D,b,a) )
-                        elif k == 1:
-                            planeVectors.append( (a,D,b) )
-                        else:
-                            planeVectors.append( (a,b,D) )
-                         
-                    index = 0
-                    print(planeVectors)
-                    for k in range(1,3):
-                        if planeVectors[k][k] > planeVectors[index][index]:
-                            index = k
+                        return (Vector(planeVectors[k]).normalized(), center)
                     
-                    planeNormal = Vector(planeVectors[k]).normalized()
+                    normal, center = getPlaneNormal()
                     
                     def moveToPlane(n, cpt, pt):
                         #find if vector between point and new point on plane (Vp-p) is parallel with plane normal (N)
@@ -570,14 +574,34 @@ class GrowHair(Operator):
                         #               Vc-p . N = 0
                         pt = pt - cpt #set the point being moved to plane in coordinates shifted to plane center
                         
-                        ptOnPlaneY = (-pt.x*n.y*n.x + pt.y*n.x**2 + pt.y*n.z**2 - pt.y*n.y*n.z)\
-                                     /(n.x**2 + n.y**2 + n.z**2)
-                        
-                        ptOnPlaneZ = (-pt.y*n.z + pt.z*n.y + ptOnPlaneY*n.z)\
-                                     /n.y
-                                     
-                        ptOnPlaneX = (-pt.x*n.y + pt.y*n.x + ptOnPlaneY*n.x)\
-                                     /n.y
+                        if n.y == max(n):
+                            ptOnPlaneY = (-pt.x*n.x*n.y + pt.y*n.x**2 + pt.y*n.z**2 - pt.z*n.z*n.y)\
+                                         /(n.x**2 + n.y**2 + n.z**2)
+                            
+                            ptOnPlaneZ = (-pt.y*n.z + pt.z*n.y + ptOnPlaneY*n.z)\
+                                         /n.y
+                                         
+                            ptOnPlaneX = (-pt.x*n.y + pt.y*n.x + ptOnPlaneY*n.x)\
+                                         /n.y
+                        elif n.z == max(n):
+                            ptOnPlaneZ = (-pt.x*n.x*n.z + pt.z*n.x**2 + pt.z*n.y**2 - pt.y*n.y*n.z)\
+                                         /(n.x**2 + n.y**2 + n.z**2)
+                            
+                            ptOnPlaneX = (-pt.z*n.x + pt.x*n.z + ptOnPlaneZ*n.x)\
+                                         /n.z
+                                         
+                            ptOnPlaneY = (-pt.z*n.y + pt.y*n.z + ptOnPlaneZ*n.y)\
+                                         /n.z
+                                         
+                        else:
+                            ptOnPlaneX = (-pt.z*n.z*n.x + pt.x*n.y**2 + pt.x*n.z**2 - pt.y*n.y*n.x)\
+                                         /(n.x**2 + n.y**2 + n.z**2)
+                            
+                            ptOnPlaneY = (-pt.x*n.y + pt.y*n.x + ptOnPlaneX*n.y)\
+                                         /n.x
+                                         
+                            ptOnPlaneZ = (-pt.x*n.z + pt.z*n.x + ptOnPlaneX*n.z)\
+                                         /n.x
 
                         return Vector((ptOnPlaneX, ptOnPlaneY, ptOnPlaneZ))
                     
@@ -585,8 +609,55 @@ class GrowHair(Operator):
                     polygon = [] #create a flat polygon out of the given layer of the hair form mesh
                     for loop in range(len(loops[i])): #loop through loops
                             co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
-                            coOnPlane = moveToPlane(planeNormal, center, co)
+                            coOnPlane = moveToPlane(normal, center, co)
                             polygon.append(coOnPlane)
+                            
+                    def rotateToXY(n, pt): #assumes pt is already in reference to the plane center
+                        #Gets the Y-axis angle between the planar normal and the z axis unit vector (0,0,1) 
+                        #Rotates the given point pt, and the planar normal on the y axis the calculated angle
+                        #Gets the X-axis angle between the now rotated planar normal and the z axis unit vector
+                        #Rotates the given point pt on the x axis the calculated angle.
+                        #The point pt should now have a Z value of zero because its plane was rotated to the (X,Y) plane
+                        
+                        try:
+                            yAxisTheta = acos(n.z/(sqrt(n.x**2+n.z**2)*sqrt(1**2+0)))
+                        except ZeroDivisionError:
+                            yAxisTheta = 0
+                        if n.x < 0:
+                            yAxisTheta = -1 * yAxisTheta
+                            
+                        try:
+                            xAxisTheta = acos(n.z/(sqrt(n.y**2+n.z**2)*sqrt(1**2+0)))
+                        except ZeroDivisionError:
+                            xAxisTheta = 0
+                        if n.y < 0:
+                            xAxisTheta = -1 * xAxisTheta
+                        
+                        #rotate on y axis:
+                        xPrime = pt.x*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
+                        zPrime = pt.x*sin(yAxisTheta) + pt.z*cos(yAxisTheta)
+                        
+                        
+                        #rotate on xaxis:
+                        n_zPrime = n.x*sin(yAxisTheta) + n.z*cos(yAxisTheta)
+                        try:
+                            xAxisTheta = acos(n_zPrime/(sqrt(n.y**2+n_zPrime**2)*sqrt(1**2+0)))
+                        except ZeroDivisionError:
+                            xAxisTheta = 0
+                        if n.y < 0:
+                            xAxisTheta = -1 * xAxisTheta
+                        
+                        yPrime = pt.y*cos(xAxisTheta) - zPrime*sin(xAxisTheta)
+                        zPrimePrime = pt.y*sin(xAxisTheta) + zPrime*cos(xAxisTheta)
+                        
+                        print(pt.z, zPrime, zPrimePrime)
+                        
+                        return Vector((xPrime, yPrime, zPrimePrime))
+                    
+                    #print(rotateToXY(normal, normal))
+                    xyPolygon = []
+                    for v in polygon:
+                        xyPolygon.append(rotateToXY(normal, v))
                         
                 
         bpy.ops.particle.particle_edit_toggle()
