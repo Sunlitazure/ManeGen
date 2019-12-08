@@ -227,7 +227,7 @@ def separateObj(obj):
 
 
 
-def getHairFormType(obj, sepObj):
+def gethairTemplateType(obj, sepObj):
     sepVert, sepEdge, sepFace = sepObj
     allSeams = getSeams(obj)
     seams = [[e for e in allSeams if e.vertices[0] in v] for v in sepVert]
@@ -302,20 +302,20 @@ class GrowHair(Operator):
     def execute(self, context):
         partSys = context.object.particle_systems
         activeSys = partSys[partSys.active_index]
-        hairStyle = activeSys.settings.hairStyle
+        MG_attrs = activeSys.settings.MG_attrs
         
         activeSysData = bpy.data.particles[partSys[partSys.active_index].settings.name]
         try:
-            sepObj = separateObj(hairStyle.hairForm)
-            formType = getHairFormType(hairStyle.hairForm, sepObj)
-            loops = getLoops(hairStyle.hairForm, sepObj, formType)
+            sepObj = separateObj(MG_attrs.hairTemplate)
+            formType = gethairTemplateType(MG_attrs.hairTemplate, sepObj)
+            loops = getLoops(MG_attrs.hairTemplate, sepObj, formType)
             
             for ob in loops:
                 for i in range(len(ob)-1):
                     length = len(ob[i])
                     length2 = len(ob[i+1])
                     if length != length2:
-                        self.report({'ERROR'}, 'all sides of hairform must have the same length')
+                        self.report({'ERROR'}, 'all sides of hairTemplate must have the same length')
             
         except AttributeError:
             self.report({'ERROR'}, "Hair form must be mesh object with seams marked where the hair roots start")
@@ -326,12 +326,12 @@ class GrowHair(Operator):
         guidesN = 0
         guideSeg = len(loops[0][0])
         for i in range(len(formType)):
-            if hairStyle.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
-                guidesN = guidesN + len(loops[i]) + ((len(loops[i])-1) * hairStyle.stripSubdiv) + \
-                          (hairStyle.stripTube and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE))) * \
-                          hairStyle.stripSubdiv
+            if MG_attrs.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+                guidesN = guidesN + len(loops[i]) + ((len(loops[i])-1) * MG_attrs.stripSubdiv) + \
+                          (MG_attrs.stripTube and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE))) * \
+                          MG_attrs.stripSubdiv
             if (formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE):
-                guidesN = guidesN + hairStyle.guideCount
+                guidesN = guidesN + MG_attrs.guideCount
             
         activeSysData.count = guidesN
         activeSysData.hair_step = guideSeg - 1
@@ -360,25 +360,25 @@ class GrowHair(Operator):
         
         shift = 0
         for i in range(len(formType)):
-            if hairStyle.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
+            if MG_attrs.stripTube or (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
                 for loop in range(len(loops[i])):
                     part = depPSys.particles[loop + shift]  
-                    part.location = hairStyle.hairForm.data.vertices[loops[i][loop][0]].co
+                    part.location = MG_attrs.hairTemplate.data.vertices[loops[i][loop][0]].co
                     for vert in range(len(loops[i][loop])):
-                        part.hair_keys[vert].co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
+                        part.hair_keys[vert].co = MG_attrs.hairTemplate.data.vertices[loops[i][loop][vert]].co
                 
                 loopsMap = [j for j in range(len(loops[i]))]
                 if (formType[i] == FormType.CONE) or (formType[i] == FormType.TUBE):
                     loopsMap.append(loopsMap[0])
                      
                 for loop in loopsMap[:-1]:
-                    for j in range(hairStyle.stripSubdiv):
-                        part = depPSys.particles[shift + len(loops[i]) + loop*hairStyle.stripSubdiv + j]
+                    for j in range(MG_attrs.stripSubdiv):
+                        part = depPSys.particles[shift + len(loops[i]) + loop*MG_attrs.stripSubdiv + j]
 
                         for vert in range(len(loops[i][loop])):
-                            co = (hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co * (j + 1) + \
-                                  hairStyle.hairForm.data.vertices[loops[i][loopsMap[loop+1]][vert]].co * \
-                                 (hairStyle.stripSubdiv - j)) / (hairStyle.stripSubdiv + 1)
+                            co = (MG_attrs.hairTemplate.data.vertices[loops[i][loop][vert]].co * (j + 1) + \
+                                  MG_attrs.hairTemplate.data.vertices[loops[i][loopsMap[loop+1]][vert]].co * \
+                                 (MG_attrs.stripSubdiv - j)) / (MG_attrs.stripSubdiv + 1)
                                  
                             if vert == 0:
                                 part.location = co
@@ -386,9 +386,9 @@ class GrowHair(Operator):
                             part.hair_keys[vert].co = co
                             
                 
-                shift = shift + len(loops[i]) + (len(loopsMap)-1) * hairStyle.stripSubdiv
+                shift = shift + len(loops[i]) + (len(loopsMap)-1) * MG_attrs.stripSubdiv
                 
-            if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (hairStyle.guideCount > 0) and ((hairStyle.dist == 'normal') or (hairStyle.dist == 'const')):
+            if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (MG_attrs.guideCount > 0) and ((MG_attrs.dist == 'normal') or (MG_attrs.dist == 'const')):
                 part = depPSys.particles[shift]
                 
                 #generate center hair
@@ -397,7 +397,7 @@ class GrowHair(Operator):
                     x, y, z = [], [], []
                     l = len(loops[i])
                     for loop in range(len(loops[i])):
-                        co = hairStyle.hairForm.data.vertices[loops[i][loop][vert]].co
+                        co = MG_attrs.hairTemplate.data.vertices[loops[i][loop][vert]].co
                         x.append(co.x)
                         y.append(co.y)
                         z.append(co.z)
@@ -410,12 +410,12 @@ class GrowHair(Operator):
                     part.hair_keys[vert].co = newPoint
                 
                 #generate interpolated hair
-                if hairStyle.dist == 'normal':
-                    random.seed(hairStyle.distSeed)
-                    for j in range(1, hairStyle.guideCount):
+                if MG_attrs.dist == 'normal':
+                    random.seed(MG_attrs.distSeed)
+                    for j in range(1, MG_attrs.guideCount):
                         part = depPSys.particles[shift + j]
-                        distMaxWidth = 11 - hairStyle.distWidth
-                        distWidth = 11 - hairStyle.distSharpness
+                        distMaxWidth = 11 - MG_attrs.distWidth
+                        distWidth = 11 - MG_attrs.distSharpness
                         
                         if distWidth < distMaxWidth:
                             raise Exception("Width must be equal to or less than Max Width")
@@ -430,7 +430,7 @@ class GrowHair(Operator):
                             x, y, z = [], [], []
                             l = refCount
                             for k in refLoops:
-                                  co = hairStyle.hairForm.data.vertices[loops[i][k][vert]].co
+                                  co = MG_attrs.hairTemplate.data.vertices[loops[i][k][vert]].co
                                   x.append(co.x)
                                   y.append(co.y)
                                   z.append(co.z)
@@ -443,10 +443,10 @@ class GrowHair(Operator):
                             
                             part.hair_keys[vert].co = newPoint
                             
-                elif hairStyle.dist == 'const':
-                    random.seed(hairStyle.jitterSeed)
-                    minHairPerDiv = int((hairStyle.guideCount-1) / len(loops[i]))
-                    extraHairs = (hairStyle.guideCount-1) % len(loops[i])
+                elif MG_attrs.dist == 'const':
+                    random.seed(MG_attrs.jitterSeed)
+                    minHairPerDiv = int((MG_attrs.guideCount-1) / len(loops[i]))
+                    extraHairs = (MG_attrs.guideCount-1) % len(loops[i])
                     
                     localShift = 1
                     
@@ -488,13 +488,13 @@ class GrowHair(Operator):
                             
                             randX, randY, randZ = (random.random()-.5)*2, (random.random()-.5)*2, (random.random()-.5)*2 
                             for vert in range(len(loops[i][0])):
-                                co = hairStyle.hairForm.data.vertices[
+                                co = MG_attrs.hairTemplate.data.vertices[
                                                     loops[i][sortLoopMap[j]][vert]
                                                     ].co
                                 
                                 distVector = co - centerHair[vert]
                                 randScale = sqrt(distVector.x**2 + distVector.y**2 + distVector.z**2)
-                                jitter = hairStyle.jitter * randScale
+                                jitter = MG_attrs.jitter * randScale
                                 
                                 co = co * (k + 1)
                                 center = centerHair[vert] * (minHairPerDiv + extra - k)
@@ -507,9 +507,9 @@ class GrowHair(Operator):
                                     
                                 part.hair_keys[vert].co = newPoint
                                 
-                shift = shift + hairStyle.guideCount
+                shift = shift + MG_attrs.guideCount
                                 
-            elif (hairStyle.dist == 'complex') and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)):
+            elif (MG_attrs.dist == 'complex') and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)):
                 for j in range(len(loops[i][0])): #loop through vertex layers
                     
                     def getPlaneNormal():
@@ -518,7 +518,7 @@ class GrowHair(Operator):
                             x, y, z = [], [], []
                             l = len(loops[i])
                             for loop in range(len(loops[i])): #loop through loops
-                                co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
+                                co = MG_attrs.hairTemplate.data.vertices[loops[i][loop][j]].co
                                 x.append(co.x)
                                 y.append(co.y)
                                 z.append(co.z)
@@ -608,7 +608,7 @@ class GrowHair(Operator):
                     
                     polygon = [] #create a flat polygon out of the given layer of the hair form mesh
                     for loop in range(len(loops[i])): #loop through loops
-                            co = hairStyle.hairForm.data.vertices[loops[i][loop][j]].co
+                            co = MG_attrs.hairTemplate.data.vertices[loops[i][loop][j]].co
                             coOnPlane = moveToPlane(normal, center, co)
                             polygon.append(coOnPlane)
                             
@@ -650,8 +650,6 @@ class GrowHair(Operator):
                         yPrime = pt.y*cos(xAxisTheta) - zPrime*sin(xAxisTheta)
                         zPrimePrime = pt.y*sin(xAxisTheta) + zPrime*cos(xAxisTheta)
                         
-                        print(pt.z, zPrime, zPrimePrime)
-                        
                         return Vector((xPrime, yPrime, zPrimePrime))
                     
                     #print(rotateToXY(normal, normal))
@@ -670,10 +668,10 @@ class GrowHair(Operator):
 #          GUI Panel in ParticleSettings Properties Menu
 #-----------------------------------------------------------------------
 #GUI panel for addon found in properties -> particles (that's set to hair)
-class HairAddonPanel(Panel):
+class ManeGenPanel(Panel):
     """Creates a panel in the Particles properties window"""
     
-    bl_label = "Hair Addon"
+    bl_label = "ManeGen"
     bl_idname = "OBJECT_PT_hairAddon"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -693,12 +691,12 @@ class HairAddonPanel(Panel):
         
         col = layout.column()
         
-        hairStyle = partSys[partSys.active_index].settings.hairStyle
+        MG_attrs = partSys[partSys.active_index].settings.MG_attrs
         
         row = col.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
-        row.label(text = 'Hairform')
-        row.prop(hairStyle, "hairForm", text='')
+        row.label(text = 'Hair Template')
+        row.prop(MG_attrs, "hairTemplate", text='')
         
         box = col.box()
         
@@ -713,8 +711,8 @@ class HairAddonPanel(Panel):
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
         row.label(text = "Guide Count")
-        row.prop(hairStyle, "guideCount", text = '')
-        #if hairStyle.followMesh:
+        row.prop(MG_attrs, "guideCount", text = '')
+        #if MG_attrs.followMesh:
         #    row.enabled = False
         #else:
         #    row.enabled = True
@@ -728,20 +726,20 @@ class HairAddonPanel(Panel):
         row = box.row(align = True)
         row.alignment = 'RIGHT'
         row.label(text = 'Distribution')
-        row.prop(hairStyle, 'dist', text = '')
+        row.prop(MG_attrs, 'dist', text = '')
         
-        if hairStyle.dist == 'normal':            
+        if MG_attrs.dist == 'normal':            
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Avg Width')
-            row.prop(hairStyle, 'distSharpness', text = '')
+            row.prop(MG_attrs, 'distSharpness', text = '')
                 
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Outer Width')
-            row.prop(hairStyle, 'distWidth', text = '')
+            row.prop(MG_attrs, 'distWidth', text = '')
             
-            if hairStyle.distWidth < hairStyle.distSharpness:
+            if MG_attrs.distWidth < MG_attrs.distSharpness:
                 row = box.row()
                 row.alignment = 'RIGHT'
                 row.label(text = 'Avg Width > Max Width', icon = "ERROR")
@@ -749,18 +747,18 @@ class HairAddonPanel(Panel):
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Distribution Seed')
-            row.prop(hairStyle, 'distSeed', text = '')
+            row.prop(MG_attrs, 'distSeed', text = '')
                 
-        elif hairStyle.dist == 'const':
+        elif MG_attrs.dist == 'const':
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Jitter')
-            row.prop(hairStyle, 'jitter', text = '')
+            row.prop(MG_attrs, 'jitter', text = '')
             
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Jitter Seed')
-            row.prop(hairStyle, 'jitterSeed', text = '')
+            row.prop(MG_attrs, 'jitterSeed', text = '')
         
         
         box = col.box()
@@ -771,13 +769,13 @@ class HairAddonPanel(Panel):
         
         row = box.split(factor = .5, align=True)
         row.alignment = 'RIGHT'
-        row.label(text = 'Strip Subdiv')
-        row.prop(hairStyle, "stripSubdiv", text = '')
+        row.label(text = 'Subdiv')
+        row.prop(MG_attrs, "stripSubdiv", text = '')
         
         row = box.row(align = True)
         row.alignment = 'RIGHT'
-        row.label(text = 'Use strip guides on tube objects')
-        row.prop(hairStyle, 'stripTube', text = '')
+        row.label(text = 'Use edge guides on volume objects')
+        row.prop(MG_attrs, 'stripTube', text = '')
         
         row = col.row()
         row.operator("particle.hair_style")
@@ -794,7 +792,7 @@ class PartSettingsProperties(PropertyGroup):
             ('complex', 'Complex Vector', '', '', 2),
             ]
     
-    hairForm: PointerProperty(
+    hairTemplate: PointerProperty(
         type = Object
         )
     guideCount: IntProperty(
@@ -837,7 +835,7 @@ class PartSettingsProperties(PropertyGroup):
 classes = (
     PartSettingsProperties,
     GrowHair,
-    HairAddonPanel,
+    ManeGenPanel,
 )
 
 
@@ -847,13 +845,13 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    bpy.types.ParticleSettings.hairStyle = PointerProperty(type=PartSettingsProperties)
+    bpy.types.ParticleSettings.MG_attrs = PointerProperty(type=PartSettingsProperties)
     
 def unregister():
     from bpy.utils import unregister_class
     for cls in reversed(classes):
         unregister_class(cls)
-    del bpy.types.ParticleSettings.hairStyle
+    del bpy.types.ParticleSettings.MG_attrs
 
 if __name__ == "__main__":
     register()        
