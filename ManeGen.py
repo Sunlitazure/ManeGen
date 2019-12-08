@@ -36,7 +36,8 @@ from math import (sqrt,
                   floor,
                   acos,
                   cos,
-                  sin
+                  sin,
+                  pi
                   )
 import numpy as np
 
@@ -656,7 +657,60 @@ class GrowHair(Operator):
                     xyPolygon = []
                     for v in polygon:
                         xyPolygon.append(rotateToXY(normal, v))
+                    
+                    def angle2d(v1, v2, center):
+                        #angle between the vectors v1-center and v2-center
+                        v1 = v1 - center
+                        v2 = v2 - center
                         
+                        try:
+                            zAxisTheta = acos((v1.x*v2.x + v1.y*v2.y)\
+                            /(sqrt(v1.x**2+v1.y**2)*sqrt(v2.x**2+v2.y**2)))
+                        except ZeroDivisionError:
+                            zAxisTheta = 0
+                            
+                        return zAxisTheta
+                    
+                    def sameAngleSide(v1, v2, v3, v4):
+                        # for a 4-vertex line, check if first angle is on the same side
+                        # of the center line as the second angle. This will determine if
+                        # pi needs to be added to the second angle or not
+                        #        v1 \___/ v4          v1 \___ v3
+                        #          v2  v3               v2   \ v4
+                        
+                        if (v2.x-v3.x) == 0:
+                            v1Side = (v1.x-v2.x) >= 0
+                            v4Side = (v4.x-v2.x) >= 0
+                        
+                        v1Side = (v2.y-v3.y)/(v2.x-v3.x)*v1.x - v1.y + v2.y - \
+                                 (v2.y-v3.y)/(v2.x-v3.x)*v2.x >= 0
+                        v4Side = (v2.y-v3.y)/(v2.x-v3.x)*v4.x - v4.y + v2.y - \
+                                 (v2.y-v3.y)/(v2.x-v3.x)*v2.x >= 0
+                        return (v1Side == v4Side)
+                        
+                    inUnitVects = [0 for k in xyPolygon]
+                    angles = [angle2d(xyPolygon[0], xyPolygon[-2], xyPolygon[-1])]
+                    #the inside/outside reference is the acute angle on the first section
+                    flip = 0
+                    for k in range(1, len(xyPolygon)):
+                        angles.append(angle2d(xyPolygon[k], xyPolygon[k-2], xyPolygon[k-1]))
+                        line = xyPolygon[k-1] - xyPolygon[k-2]
+                        sameSide = sameAngleSide(xyPolygon[k-3],
+                                                 xyPolygon[k-2],
+                                                 xyPolygon[k-1],
+                                                 xyPolygon[k]
+                                                 )
+                        if (sameSide and flip) or (not sameSide and not flip):
+                            angles[-1] = 2*pi - angles[-1]
+                            flip = 1
+                        else:
+                            flip = 0
+                            
+                    if round(sum(angles), 11) != round(pi*(len(loops[i])-2), 11):
+                        #pi(n-2) = sum of angles inside a n-sided polygon
+                        inUnitVects = [k*-1 for k in inUnitVects]
+                        
+                    #print(sum(angles), pi*(len(loops[i])-2), sum([(2*pi - a) for a in angles]))
                 
         bpy.ops.particle.particle_edit_toggle()
         bpy.ops.particle.particle_edit_toggle()
