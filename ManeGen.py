@@ -653,7 +653,6 @@ class GrowHair(Operator):
                         
                         return Vector((xPrime, yPrime, zPrimePrime))
                     
-                    #print(rotateToXY(normal, normal))
                     xyPolygon = []
                     for v in polygon:
                         xyPolygon.append(rotateToXY(normal, v))
@@ -671,46 +670,125 @@ class GrowHair(Operator):
                             
                         return zAxisTheta
                     
-                    def sameAngleSide(v1, v2, v3, v4):
-                        # for a 4-vertex line, check if first angle is on the same side
-                        # of the center line as the second angle. This will determine if
-                        # pi needs to be added to the second angle or not
-                        #        v1 \___/ v4          v1 \___ v3
-                        #          v2  v3               v2   \ v4
+#                    def sameAngleSide(v1, v2, v3, v4):
+#                        # for a 4-vertex line, check if first angle is on the same side
+#                        # of the center line as the second angle. This will determine if
+#                        # pi needs to be added to the second angle or not
+#                        #        v1 \___/ v4          v1 \___ v3
+#                        #          v2  v3               v2   \ v4
+#                        
+#                        if (v2.x-v3.x) == 0:
+#                            v1Side = (v1.x-v2.x) >= 0
+#                            v4Side = (v4.x-v2.x) >= 0
+#                        
+#                        v1Side = (v2.y-v3.y)/(v2.x-v3.x)*v1.x - v1.y + v2.y - \
+#                                 (v2.y-v3.y)/(v2.x-v3.x)*v2.x >= 0
+#                        v4Side = (v2.y-v3.y)/(v2.x-v3.x)*v4.x - v4.y + v2.y - \
+#                                 (v2.y-v3.y)/(v2.x-v3.x)*v2.x >= 0
+#                        return (v1Side == v4Side)
+#                       
+#                    def insidePolyVector(v): 
+#                        angles = [angle2d(xyPolygon[0], xyPolygon[-2], xyPolygon[-1])]
+#                        #the inside/outside reference is the acute angle on the first section
+#                        flip = 0
+#                        for k in range(1, len(xyPolygon)):
+#                            angles.append(angle2d(xyPolygon[k], xyPolygon[k-2], xyPolygon[k-1]))
+#                            line = xyPolygon[k-1] - xyPolygon[k-2]
+#                            sameSide = sameAngleSide(xyPolygon[k-3],
+#                                                     xyPolygon[k-2],
+#                                                     xyPolygon[k-1],
+#                                                     xyPolygon[k]
+#                                                     )
+#                            if (sameSide and flip) or (not sameSide and not flip):
+#                                angles[-1] = 2*pi - angles[-1]
+#                                flip = 1
+#                            else:
+#                                flip = 0
+#                        
+#                        #print(sum(angles), pi*(len(loops[i])-2), sum([(2*pi - a) for a in angles]))
+                    
+                    def rotateVector(v, p, theta):
+                        #rotate vector v around pivot p theta radians
+                        # +theta = counterclock wise, -theta = clockwise
+                        vp = v-p
                         
-                        if (v2.x-v3.x) == 0:
-                            v1Side = (v1.x-v2.x) >= 0
-                            v4Side = (v4.x-v2.x) >= 0
+                        xPrime = vp.x*cos(theta) - vp.y*sin(theta)
+                        yPrime = vp.x*sin(theta) + vp.y*cos(theta)
                         
-                        v1Side = (v2.y-v3.y)/(v2.x-v3.x)*v1.x - v1.y + v2.y - \
-                                 (v2.y-v3.y)/(v2.x-v3.x)*v2.x >= 0
-                        v4Side = (v2.y-v3.y)/(v2.x-v3.x)*v4.x - v4.y + v2.y - \
-                                 (v2.y-v3.y)/(v2.x-v3.x)*v2.x >= 0
-                        return (v1Side == v4Side)
+                        v = Vector((xPrime+p.x, yPrime+p.y, v.z))
                         
-                    inUnitVects = [0 for k in xyPolygon]
-                    angles = [angle2d(xyPolygon[0], xyPolygon[-2], xyPolygon[-1])]
-                    #the inside/outside reference is the acute angle on the first section
-                    flip = 0
-                    for k in range(1, len(xyPolygon)):
-                        angles.append(angle2d(xyPolygon[k], xyPolygon[k-2], xyPolygon[k-1]))
-                        line = xyPolygon[k-1] - xyPolygon[k-2]
-                        sameSide = sameAngleSide(xyPolygon[k-3],
-                                                 xyPolygon[k-2],
-                                                 xyPolygon[k-1],
-                                                 xyPolygon[k]
-                                                 )
-                        if (sameSide and flip) or (not sameSide and not flip):
-                            angles[-1] = 2*pi - angles[-1]
-                            flip = 1
-                        else:
-                            flip = 0
+                        return v
+                    
+                    def insidePoly(pt):
+                        #https://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
+                        inf = Vector((int(1e10), pt.y, 0))
+                        
+                        def getOrientation(p, q, r):
+                            orientation = (q.y-p.y)*(r.x-q.x) - (q.x-p.x)*(r.y-q.y)
+                            if orientation == 0:
+                                return 0 #colinear
+                            return 1 if (orientation > 0) else 2 #clock or counterclock wise
+                        
+                        def onSegment(p, q, r):
+                            if (q.x <= max(p.x, r.x)) and (q.x >= min(p.x, r.x)) \
+                            and (q.y <= max(p.y, r.y)) and (q.y >= min(p.y, r.y)):
+                                return True
+                            return False
+                        
+                        def doIntersect(p1, q1, p2, q2):
+                            o1 = getOrientation(p1, q1, p2)
+                            o2 = getOrientation(p1, q1, q2)
+                            o3 = getOrientation(p2, q2, p1)
+                            o4 = getOrientation(p2, q2, q1)
                             
-                    if round(sum(angles), 11) != round(pi*(len(loops[i])-2), 11):
-                        #pi(n-2) = sum of angles inside a n-sided polygon
-                        inUnitVects = [k*-1 for k in inUnitVects]
+                            if (o1 != o2) and (o3 != o4):
+                                return True
+                            
+                            if o1 == 0 and onSegment(p1, p2, q1):
+                                return True
+                            if o2 == 0 and onSegment(p1, q2, q1):
+                                return True
+                            if o3 == 0 and onSegment(p2, p1, q2):
+                                return True
+                            if o4 == 0 and onSegment(p2, q1, q2):
+                                return True
+                            
+                            return False
                         
-                    #print(sum(angles), pi*(len(loops[i])-2), sum([(2*pi - a) for a in angles]))
+                        count = 0
+                        for k in range(len(xyPolygon)):
+                            if doIntersect(xyPolygon[k-1], xyPolygon[k], pt, inf):
+                                if getOrientation(polygon[k-1], pt, polygon[k]) == 0:
+                                    return onSegment(polygon[k-1], pt, polygon[k])
+                                
+                                count = count + 1
+                        return count%2 == 1
+                        
+                    minX = min([k.x for k in xyPolygon])
+                    minY = min([k.y for k in xyPolygon])
+                    maxX = max([k.x for k in xyPolygon])
+                    maxY = max([k.y for k in xyPolygon])
+                    
+                    l = 0
+                    newPoints = []
+                    while len(newPoints) <  MG_attrs.guideCount and l < 100:
+                        l = 1 + 1
+                        randX = random.uniform(minX, maxX)
+                        randY = random.uniform(minY, maxY)
+                        
+                        point = Vector((randX, randY, 0))
+                        inside = insidePoly(point)
+                        if inside:
+                            point = rotateToXY(Vector((normal.x*-1,
+                                                      normal.y*-1,
+                                                      normal.z)),
+                                                point)
+                            newPoints.append(point + center)
+                    for k in range(MG_attrs.guideCount): #loop though hairGuides
+                        part = depPSys.particles[shift + k]
+                        part.hair_keys[j].co = newPoints[k]
+                
+                shift = shift + MG_attrs.guideCount        
                 
         bpy.ops.particle.particle_edit_toggle()
         bpy.ops.particle.particle_edit_toggle()
