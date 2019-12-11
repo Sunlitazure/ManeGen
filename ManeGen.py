@@ -35,6 +35,7 @@ import random
 from math import (sqrt,
                   floor,
                   acos,
+                  asin,
                   cos,
                   sin,
                   pi
@@ -620,19 +621,26 @@ class GrowHair(Operator):
                         #Rotates the given point pt on the x axis the calculated angle.
                         #The point pt should now have a Z value of zero because its plane was rotated to the (X,Y) plane
                         
+#                        #zaxis inverse angle
+#                        try:
+#                            zAxisTheta = acos(n.x/(sqrt(n.y**2+n.x**2)*sqrt(1**2)))
+#                        except ZeroDivisionError:
+#                            zAxisTheta = 0
+#                        if ref.y < 0:
+#                            zAxisTheta = -zAxisTheta
+#                            
+#                        print(zAxisTheta)
+#                            
+#                        xPrime = pt.x*cos(-zAxisTheta) - pt.y*sin(-zAxisTheta)
+#                        yPrime = pt.x*sin(-zAxisTheta) + pt.y*cos(-zAxisTheta)
+                        
+                        
                         try:
                             yAxisTheta = acos(n.z/(sqrt(n.x**2+n.z**2)*sqrt(1**2+0)))
                         except ZeroDivisionError:
                             yAxisTheta = 0
                         if n.x < 0:
-                            yAxisTheta = -1 * yAxisTheta
-                            
-                        try:
-                            xAxisTheta = acos(n.z/(sqrt(n.y**2+n.z**2)*sqrt(1**2+0)))
-                        except ZeroDivisionError:
-                            xAxisTheta = 0
-                        if n.y < 0:
-                            xAxisTheta = -1 * xAxisTheta
+                            yAxisTheta = -yAxisTheta
                         
                         #rotate on y axis:
                         xPrime = pt.x*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
@@ -646,7 +654,7 @@ class GrowHair(Operator):
                         except ZeroDivisionError:
                             xAxisTheta = 0
                         if n.y < 0:
-                            xAxisTheta = -1 * xAxisTheta
+                            xAxisTheta = -xAxisTheta
                         
                         yPrime = pt.y*cos(xAxisTheta) - zPrime*sin(xAxisTheta)
                         zPrimePrime = pt.y*sin(xAxisTheta) + zPrime*cos(xAxisTheta)
@@ -656,19 +664,49 @@ class GrowHair(Operator):
                     xyPolygon = []
                     for v in polygon:
                         xyPolygon.append(rotateToXY(normal, v))
-                    
-                    def angle2d(v1, v2, center):
-                        #angle between the vectors v1-center and v2-center
-                        v1 = v1 - center
-                        v2 = v2 - center
                         
+                    def rotateToVector(ref, pt):
+                        ref = ref.normalized()
+                        
+                        #zaxis inverse angle
                         try:
-                            zAxisTheta = acos((v1.x*v2.x + v1.y*v2.y)\
-                            /(sqrt(v1.x**2+v1.y**2)*sqrt(v2.x**2+v2.y**2)))
+                            zAxisTheta = acos(ref.x/(sqrt(ref.y**2+ref.x**2)*sqrt(1**2)))
                         except ZeroDivisionError:
                             zAxisTheta = 0
+                        if ref.y < 0:
+                            zAxisTheta = -zAxisTheta
                             
-                        return zAxisTheta
+                        print(zAxisTheta)
+                            
+                        xPrime = pt.x*cos(-zAxisTheta) - pt.y*sin(-zAxisTheta)
+                        yPrime = pt.x*sin(-zAxisTheta) + pt.y*cos(-zAxisTheta)
+                        
+                        
+                        yAxisTheta = -(pi/2 - asin(ref.z))
+                        
+                        #rotate on y axis:
+                        xPrimePrime = xPrime*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
+                        zPrime = xPrime*sin(yAxisTheta) + pt.z*cos(yAxisTheta)
+                        
+                            
+                        xPrimePrimePrime = xPrimePrime*cos(zAxisTheta) - yPrime*sin(zAxisTheta)
+                        yPrimePrime = xPrimePrime*sin(zAxisTheta) + yPrime*cos(zAxisTheta)
+                        
+                        return Vector((xPrimePrimePrime, yPrimePrime, zPrime))
+                        
+                    
+#                    def angle2d(v1, v2, center):
+#                        #angle between the vectors v1-center and v2-center
+#                        v1 = v1 - center
+#                        v2 = v2 - center
+#                        
+#                        try:
+#                            zAxisTheta = acos((v1.x*v2.x + v1.y*v2.y)\
+#                            /(sqrt(v1.x**2+v1.y**2)*sqrt(v2.x**2+v2.y**2)))
+#                        except ZeroDivisionError:
+#                            zAxisTheta = 0
+#                            
+#                        return zAxisTheta
                     
 #                    def sameAngleSide(v1, v2, v3, v4):
 #                        # for a 4-vertex line, check if first angle is on the same side
@@ -707,17 +745,17 @@ class GrowHair(Operator):
 #                        
 #                        #print(sum(angles), pi*(len(loops[i])-2), sum([(2*pi - a) for a in angles]))
                     
-                    def rotateVector(v, p, theta):
-                        #rotate vector v around pivot p theta radians
-                        # +theta = counterclock wise, -theta = clockwise
-                        vp = v-p
-                        
-                        xPrime = vp.x*cos(theta) - vp.y*sin(theta)
-                        yPrime = vp.x*sin(theta) + vp.y*cos(theta)
-                        
-                        v = Vector((xPrime+p.x, yPrime+p.y, v.z))
-                        
-                        return v
+#                    def rotateVector(v, p, theta):
+#                        #rotate vector v around pivot p theta radians
+#                        # +theta = counterclock wise, -theta = clockwise
+#                        vp = v-p
+#                        
+#                        xPrime = vp.x*cos(theta) - vp.y*sin(theta)
+#                        yPrime = vp.x*sin(theta) + vp.y*cos(theta)
+#                        
+#                        v = Vector((xPrime+p.x, yPrime+p.y, v.z))
+#                        
+#                        return v
                     
                     def insidePoly(pt):
                         #https://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
@@ -779,10 +817,7 @@ class GrowHair(Operator):
                         point = Vector((randX, randY, 0))
                         inside = insidePoly(point)
                         if inside:
-                            point = rotateToXY(Vector((normal.x*-1,
-                                                      normal.y*-1,
-                                                      normal.z)),
-                                                point)
+                            point = rotateToVector(normal, point)
                             newPoints.append(point + center)
                     for k in range(MG_attrs.guideCount): #loop though hairGuides
                         part = depPSys.particles[shift + k]
