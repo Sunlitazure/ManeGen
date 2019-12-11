@@ -621,45 +621,30 @@ class GrowHair(Operator):
                         #Rotates the given point pt on the x axis the calculated angle.
                         #The point pt should now have a Z value of zero because its plane was rotated to the (X,Y) plane
                         
-#                        #zaxis inverse angle
-#                        try:
-#                            zAxisTheta = acos(n.x/(sqrt(n.y**2+n.x**2)*sqrt(1**2)))
-#                        except ZeroDivisionError:
-#                            zAxisTheta = 0
-#                        if ref.y < 0:
-#                            zAxisTheta = -zAxisTheta
-#                            
-#                        print(zAxisTheta)
-#                            
-#                        xPrime = pt.x*cos(-zAxisTheta) - pt.y*sin(-zAxisTheta)
-#                        yPrime = pt.x*sin(-zAxisTheta) + pt.y*cos(-zAxisTheta)
+                        #zaxis angle
+                        try:
+                            zAxisTheta = acos(n.x/(sqrt(n.y**2+n.x**2)*sqrt(1**2)))
+                        except ZeroDivisionError:
+                            zAxisTheta = 0
+                        if n.y > 0:
+                            zAxisTheta = -zAxisTheta
+                            
+                        xPrime = pt.x*cos(zAxisTheta) - pt.y*sin(zAxisTheta)
+                        yPrime = pt.x*sin(zAxisTheta) + pt.y*cos(zAxisTheta)
                         
+                        n_xPrime = n.x*cos(zAxisTheta) - n.y*sin(zAxisTheta)
                         
                         try:
-                            yAxisTheta = acos(n.z/(sqrt(n.x**2+n.z**2)*sqrt(1**2+0)))
+                            yAxisTheta = acos(n.z/(sqrt(n_xPrime**2+n.z**2)*sqrt(1**2+0)))
                         except ZeroDivisionError:
                             yAxisTheta = 0
                         if n.x < 0:
                             yAxisTheta = -yAxisTheta
                         
                         #rotate on y axis:
-                        xPrime = pt.x*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
-                        zPrime = pt.x*sin(yAxisTheta) + pt.z*cos(yAxisTheta)
-                        
-                        
-                        #rotate on xaxis:
-                        n_zPrime = n.x*sin(yAxisTheta) + n.z*cos(yAxisTheta)
-                        try:
-                            xAxisTheta = acos(n_zPrime/(sqrt(n.y**2+n_zPrime**2)*sqrt(1**2+0)))
-                        except ZeroDivisionError:
-                            xAxisTheta = 0
-                        if n.y < 0:
-                            xAxisTheta = -xAxisTheta
-                        
-                        yPrime = pt.y*cos(xAxisTheta) - zPrime*sin(xAxisTheta)
-                        zPrimePrime = pt.y*sin(xAxisTheta) + zPrime*cos(xAxisTheta)
-                        
-                        return Vector((xPrime, yPrime, zPrimePrime))
+                        xPrimePrime = xPrime*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
+                        zPrime = xPrime*sin(yAxisTheta) + pt.z*cos(yAxisTheta)
+                        return Vector((xPrimePrime, yPrime, zPrime))
                     
                     xyPolygon = []
                     for v in polygon:
@@ -667,32 +652,25 @@ class GrowHair(Operator):
                         
                     def rotateToVector(ref, pt):
                         ref = ref.normalized()
+
+                        yAxisTheta = -(pi/2 - asin(ref.z))
                         
-                        #zaxis inverse angle
+                        #rotate on y axis:
+                        xPrime = pt.x*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
+                        zPrime = pt.x*sin(yAxisTheta) + pt.z*cos(yAxisTheta)
+                        
                         try:
                             zAxisTheta = acos(ref.x/(sqrt(ref.y**2+ref.x**2)*sqrt(1**2)))
                         except ZeroDivisionError:
                             zAxisTheta = 0
                         if ref.y < 0:
                             zAxisTheta = -zAxisTheta
-                            
-                        print(zAxisTheta)
-                            
-                        xPrime = pt.x*cos(-zAxisTheta) - pt.y*sin(-zAxisTheta)
-                        yPrime = pt.x*sin(-zAxisTheta) + pt.y*cos(-zAxisTheta)
                         
+                        #rotate on z axis:
+                        xPrimePrime = xPrime*cos(zAxisTheta) - pt.y*sin(zAxisTheta)
+                        yPrime = xPrime*sin(zAxisTheta) + pt.y*cos(zAxisTheta)
                         
-                        yAxisTheta = -(pi/2 - asin(ref.z))
-                        
-                        #rotate on y axis:
-                        xPrimePrime = xPrime*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
-                        zPrime = xPrime*sin(yAxisTheta) + pt.z*cos(yAxisTheta)
-                        
-                            
-                        xPrimePrimePrime = xPrimePrime*cos(zAxisTheta) - yPrime*sin(zAxisTheta)
-                        yPrimePrime = xPrimePrime*sin(zAxisTheta) + yPrime*cos(zAxisTheta)
-                        
-                        return Vector((xPrimePrimePrime, yPrimePrime, zPrime))
+                        return Vector((xPrimePrime, yPrime, zPrime))
                         
                     
 #                    def angle2d(v1, v2, center):
