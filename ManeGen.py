@@ -46,12 +46,9 @@ import numpy as np
 
 #
 #
+# TODO: subdive mesh in complex distribution interpolation so hairs can be attracted to
+# walls rather than just vertices
 # TODO: allow inverse distribution by increasing chance of selecting ref loops closer to loop
-# TODO: Handle concave meshes
-#       use average of loops on either side as the temp centerpoint, then move on to next n loops
-#       after adding enough guides, replacing the og loop with the previous centerpoint.
-#       ( (#loops/4) / guidesPerLoop ) = number of loops to move down for the next temp centerpoint
-# TODO: Rename project to Blend_Salon or something
 # TODO: Smooth out strip subdivision
 # TODO: Make code readable
 # TODO: refactor code so it doesn't suck anymore
@@ -389,7 +386,8 @@ class GrowHair(Operator):
                             
                 
                 shift = shift + len(loops[i]) + (len(loopsMap)-1) * MG_attrs.stripSubdiv
-                
+             
+            random.seed(MG_attrs.distSeed)   
             if ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)) and (MG_attrs.guideCount > 0) and ((MG_attrs.dist == 'normal') or (MG_attrs.dist == 'const')):
                 part = depPSys.particles[shift]
                 
@@ -413,7 +411,6 @@ class GrowHair(Operator):
                 
                 #generate interpolated hair
                 if MG_attrs.dist == 'normal':
-                    random.seed(MG_attrs.distSeed)
                     for j in range(1, MG_attrs.guideCount):
                         part = depPSys.particles[shift + j]
                         distMaxWidth = 11 - MG_attrs.distWidth
@@ -446,7 +443,6 @@ class GrowHair(Operator):
                             part.hair_keys[vert].co = newPoint
                             
                 elif MG_attrs.dist == 'const':
-                    random.seed(MG_attrs.jitterSeed)
                     minHairPerDiv = int((MG_attrs.guideCount-1) / len(loops[i]))
                     extraHairs = (MG_attrs.guideCount-1) % len(loops[i])
                     
@@ -626,23 +622,27 @@ class GrowHair(Operator):
                         
                         #zaxis angle
                         try:
-                            zAxisTheta = acos(n.x/(sqrt(n.y**2+n.x**2)*sqrt(1**2)))
+                            zAxisTheta = -acos(n.x/(sqrt(n.y**2+n.x**2)*sqrt(1**2)))
                         except ZeroDivisionError:
                             zAxisTheta = 0
-                        if n.y > 0:
+                        if n.y < 0:
                             zAxisTheta = -zAxisTheta
                             
                         xPrime = pt.x*cos(zAxisTheta) - pt.y*sin(zAxisTheta)
                         yPrime = pt.x*sin(zAxisTheta) + pt.y*cos(zAxisTheta)
                         
                         n_xPrime = n.x*cos(zAxisTheta) - n.y*sin(zAxisTheta)
-                        
+
                         try:
-                            yAxisTheta = acos(n.z/(sqrt(n_xPrime**2+n.z**2)*sqrt(1**2+0)))
+                            yAxisTheta = acos(n.z/(sqrt(n_xPrime**2+n.z**2)*sqrt(1**2)))
                         except ZeroDivisionError:
                             yAxisTheta = 0
-                        if n.x < 0:
+                        if n_xPrime < 0:
                             yAxisTheta = -yAxisTheta
+                            
+                        if n == pt:
+                            print(xPrime, pt.z)
+                            print(yAxisTheta)
                         
                         #rotate on y axis:
                         xPrimePrime = xPrime*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
@@ -677,7 +677,6 @@ class GrowHair(Operator):
                         
                         return Vector((xPrimePrime, yPrime, zPrime))
                         
-                    
 #                    def angle2d(v1, v2, center):
 #                        #angle between the vectors v1-center and v2-center
 #                        v1 = v1 - center
@@ -900,10 +899,6 @@ class ManeGenPanel(Panel):
         row.alignment = 'RIGHT'
         row.label(text = "Guide Count")
         row.prop(MG_attrs, "guideCount", text = '')
-        #if MG_attrs.followMesh:
-        #    row.enabled = False
-        #else:
-        #    row.enabled = True
             
         box.row().separator()
         
@@ -946,7 +941,13 @@ class ManeGenPanel(Panel):
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
             row.label(text = 'Jitter Seed')
-            row.prop(MG_attrs, 'jitterSeed', text = '')
+            row.prop(MG_attrs, 'distSeed', text = '')
+            
+        elif MG_attrs.dist == 'complex':
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Distribution Seed')
+            row.prop(MG_attrs, 'distSeed', text = '')
         
         
         box = col.box()
@@ -967,6 +968,10 @@ class ManeGenPanel(Panel):
         
         row = col.row()
         row.operator("particle.hair_style")
+        if MG_attrs.distWidth < MG_attrs.distSharpness and MG_attrs.dist == 'normal':
+            row.enabled = False
+        if not MG_attrs.hairTemplate:
+            row.enabled = False
 
 
 
@@ -984,7 +989,7 @@ class PartSettingsProperties(PropertyGroup):
         type = Object
         )
     guideCount: IntProperty(
-        default = 0,
+        default = 10,
         min = 0)
     distSeed: IntProperty(
         default = 0,
@@ -997,17 +1002,13 @@ class PartSettingsProperties(PropertyGroup):
     stripTube: BoolProperty(
         default = False)
     distWidth: IntProperty(
-        default = 1,
+        default = 5,
         min = 1,
         max = 10)
     distSharpness: IntProperty(
         default = 2,
         min = 1,
         max = 10)
-    jitterSeed: IntProperty(
-        default = 0,
-        min = -2147483647,
-        max = 2147483647)
     jitter: FloatProperty(
         min = 0,
         step = 1)
