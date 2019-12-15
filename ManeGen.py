@@ -512,6 +512,9 @@ class GrowHair(Operator):
                 shift = shift + MG_attrs.guideCount
                                 
             elif (MG_attrs.dist == 'complex') and ((formType[i] == FormType.TUBE) or (formType[i] == FormType.CONE)):
+                ptPositions = []
+                ptWeights = []
+                xyPolygons = []
                 for j in range(len(loops[i][0])): #loop through vertex layers
                     
                     def getPlaneNormal():
@@ -650,6 +653,8 @@ class GrowHair(Operator):
                     for v in polygon:
                         xyPolygon.append(rotateToXY(normal, v))
                         
+                    xyPolygons.append(xyPolygon)
+                    
                     def rotateToVector(ref, pt):
                         ref = ref.normalized()
 
@@ -785,21 +790,59 @@ class GrowHair(Operator):
                     maxX = max([k.x for k in xyPolygon])
                     maxY = max([k.y for k in xyPolygon])
                     
-                    l = 0
-                    newPoints = []
-                    while len(newPoints) <  MG_attrs.guideCount and l < 100:
-                        l = 1 + 1
-                        randX = random.uniform(minX, maxX)
-                        randY = random.uniform(minY, maxY)
-                        
-                        point = Vector((randX, randY, 0))
-                        inside = insidePoly(point)
-                        if inside:
-                            point = rotateToVector(normal, point)
-                            newPoints.append(point + center)
+                    
+                    
+                    if j == 0:
+                        #randomly generate guideCount number of points on first layer
+                        l = 0
+                        while len(ptPositions) <  MG_attrs.guideCount and l < 100:
+                            l = 1 + 1
+                            randX = random.uniform(minX, maxX)
+                            randY = random.uniform(minY, maxY)
+                            
+                            point = Vector((randX, randY, 0))
+                            inside = insidePoly(point)
+                            if inside:
+                                ptPositions.append(point)
+                                
+                    else:
+                        #transform last layers points with changes between this and last layer poly
+                        newPtPositions = []
+                        for k in range(len(ptPositions)):
+                            weightedDist = Vector((0,0,0))
+                            for l in range( len(xyPolygon) ):
+                                dist = xyPolygon[l] - xyPolygons[j-1][l]
+                                weightedDist = weightedDist + (dist * ptWeights[k][l])
+                                
+                            point = weightedDist + ptPositions[k]
+                            newPtPositions.append( point )
+                            
+                        ptPositions = newPtPositions
+                                
+                    #move the particles to the positions found in ptPositions
                     for k in range(MG_attrs.guideCount): #loop though hairGuides
                         part = depPSys.particles[shift + k]
-                        part.hair_keys[j].co = newPoints[k]
+                        part.hair_keys[j].co = rotateToVector(normal, ptPositions[k]) + center
+                        
+                        if j == 0:
+                            part.location = ptPositions[k]
+                    
+                    #generate new weights for the current polygon
+                    
+                    for k in ptPositions:
+                        weight = []
+                        weightNumerator = []
+                        for l in xyPolygon:
+                            dist = k-l
+                            if dist.x == 0 and dist.y == 0:
+                                weightNumerator.append( 1e10 )
+                            else:
+                                weightNumerator.append( 1/(sqrt(dist.x**2 + dist.y**2)**2) )
+                                
+                        for l in weightNumerator:
+                            weight.append( l / sum(weightNumerator) )
+                        ptWeights.append(weight)
+                            
                 
                 shift = shift + MG_attrs.guideCount        
                 
