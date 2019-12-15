@@ -511,6 +511,7 @@ class GrowHair(Operator):
                 ptPositions = []
                 ptWeights = []
                 xyPolygons = []
+                subDivXYPolys = []
                 for j in range(len(loops[i][0])): #loop through vertex layers
                     
                     def getPlaneNormal():
@@ -654,6 +655,20 @@ class GrowHair(Operator):
                         xyPolygon.append(rotateToXY(normal, v))
                         
                     xyPolygons.append(xyPolygon)
+                    
+                    # Subdivide edges of hair template so hair verts will follow faces
+                    # as well as verts changing between layers
+                    subDivXYPoly = []
+                    subDivLevel = MG_attrs.tempSubDiv
+                    for k in range(len(xyPolygon)):
+                        subDivXYPoly.append(xyPolygon[k-1])
+                        for l in range(subDivLevel):
+                            subDivXYPoly.append(
+                                (xyPolygon[k] * (l + 1) + xyPolygon[k-1] * (subDivLevel - l)) / (subDivLevel + 1)
+                            )
+
+                    subDivXYPolys.append(subDivXYPoly) 
+                    
                     
                     def rotateToVector(ref, pt):
                         ref = ref.normalized()
@@ -809,8 +824,8 @@ class GrowHair(Operator):
                         newPtPositions = []
                         for k in range(len(ptPositions)):
                             weightedDist = Vector((0,0,0))
-                            for l in range( len(xyPolygon) ):
-                                dist = xyPolygon[l] - xyPolygons[j-1][l]
+                            for l in range( len(subDivXYPoly) ):
+                                dist = subDivXYPoly[l] - subDivXYPolys[j-1][l]
                                 weightedDist = weightedDist + (dist * ptWeights[k][l])
                                 
                             point = weightedDist + ptPositions[k]
@@ -831,7 +846,7 @@ class GrowHair(Operator):
                     for k in ptPositions:
                         weight = []
                         weightNumerator = []
-                        for l in xyPolygon:
+                        for l in subDivXYPoly:
                             dist = k-l
                             if dist.x == 0 and dist.y == 0:
                                 weightNumerator.append( 1e10 )
@@ -946,6 +961,11 @@ class ManeGenPanel(Panel):
         elif MG_attrs.dist == 'complex':
             row = box.split(factor = .5, align=True)
             row.alignment = 'RIGHT'
+            row.label(text = 'Template Sub Div')
+            row.prop(MG_attrs, 'tempSubDiv', text = '')
+            
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
             row.label(text = 'Distribution Seed')
             row.prop(MG_attrs, 'distSeed', text = '')
         
@@ -1015,6 +1035,10 @@ class PartSettingsProperties(PropertyGroup):
     dist: EnumProperty(
         items = options
         )
+    tempSubDiv: IntProperty(
+        default = 5,
+        min = 0,
+        max = 50)
 
 
 
