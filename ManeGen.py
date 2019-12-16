@@ -514,6 +514,19 @@ class GrowHair(Operator):
                 subDivXYPolys = []
                 for j in range(len(loops[i][0])): #loop through vertex layers
                     
+                    same = 0
+                    for k in range(len(loops[i])-1):
+                        pt1 = MG_attrs.hairTemplate.data.vertices[loops[i][k][j]].co
+                        pt2 = MG_attrs.hairTemplate.data.vertices[loops[i][k+1][j]].co
+                        if pt1 != pt2:
+                            same = 1
+                            break
+                    if not same:
+                        for k in range(MG_attrs.guideCount): #loop though hairGuides
+                            part = depPSys.particles[shift + k]
+                            part.hair_keys[j].co = MG_attrs.hairTemplate.data.vertices[loops[i][0][j]].co
+                        continue
+                    
                     def getPlaneNormal():
                         planeVectors = []
                         for k in range(3):
