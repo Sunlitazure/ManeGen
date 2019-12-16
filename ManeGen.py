@@ -46,8 +46,7 @@ import numpy as np
 
 #
 #
-# TODO: subdive mesh in complex distribution interpolation so hairs can be attracted to
-# walls rather than just vertices
+# TODO: allow randomization of points on z-axis create a less uniform appearance
 # TODO: allow inverse distribution by increasing chance of selecting ref loops closer to loop
 # TODO: Smooth out strip subdivision
 # TODO: Make code readable
@@ -845,6 +844,10 @@ class GrowHair(Operator):
                             newPtPositions.append( point )
                             
                         ptPositions = newPtPositions
+                        
+                    magnitude = MG_attrs.zMag
+                    for k in range(len(ptPositions)):
+                        ptPositions[k] = ptPositions[k] + Vector((0,0,magnitude)) * (random.random()-.5)
                                 
                     #move the particles to the positions found in ptPositions
                     for k in range(MG_attrs.guideCount): #loop though hairGuides
@@ -981,6 +984,11 @@ class ManeGenPanel(Panel):
             row.alignment = 'RIGHT'
             row.label(text = 'Distribution Seed')
             row.prop(MG_attrs, 'distSeed', text = '')
+            
+            row = box.split(factor = .5, align=True)
+            row.alignment = 'RIGHT'
+            row.label(text = 'Z Randomize Size')
+            row.prop(MG_attrs, 'zMag', text = '')
         
         
         box = col.box()
@@ -1013,9 +1021,9 @@ class ManeGenPanel(Panel):
 #-----------------------------------------------------------------------
 class PartSettingsProperties(PropertyGroup):
     options = [
-            ('normal', 'Avg Gaussian', '', '', 0),
-            ('const', 'Avg Const', '', '', 1),
             ('complex', 'Complex Vector', '', '', 2),
+            ('normal', 'Avg Gaussian', '', '', 0),
+            ('const', 'Avg Const', '', '', 1)
             ]
     
     hairTemplate: PointerProperty(
@@ -1052,6 +1060,9 @@ class PartSettingsProperties(PropertyGroup):
         default = 5,
         min = 0,
         max = 50)
+    zMag: FloatProperty(
+        min = 0,
+        step = 1)
 
 
 
