@@ -148,7 +148,7 @@ def getLoops(obj, sepObj, formType):
             for j in range(1, len(loopVerts[i])):
                 loopVerts[i][j].append(loopVerts[i][0][-1])
     
-    newLoopVerts = [[obj[0]] for obj in loopVerts]       
+    newLoopVerts = [[o[0]] for o in loopVerts]       
     for i in range(len(loopVerts)):
         if (formType[i] == FormType.CARD) or (formType[i] == FormType.SPIKE):
             for j in range(len(loopVerts[i])):
@@ -199,26 +199,20 @@ def separateObj(obj):
             
         if not newObj:
            break
-        
-        added = True
-        while added:
-            added = False
+       
+        while refVert < len(vertices[refObj]):
             for e in obj.data.edges:
                 for v in e.vertices:
                     if (vertices[refObj][refVert] == v) and (e.index not in edges[refObj]):
                         edges[refObj].append(e.index)
-                        added = True
                         
             for e in edges[refObj]:
                 for v in obj.data.edges[e].vertices:
                     if v not in vertices[refObj]:
                         vertices[refObj].append(v)
-                        added = True
             
-            if added:
-                refVert = refVert + 1
-                
-        
+            refVert = refVert + 1
+                    
         faces = [[f.index for f in obj.data.polygons if f.vertices[0] in v] for v in vertices]
     
     return vertices, edges, faces
@@ -595,8 +589,9 @@ class GrowHair(Operator):
                             ptOnPlaneZ = (-pt.y*n.z + pt.z*n.y + ptOnPlaneY*n.z)\
                                          /n.y
                                          
-                            ptOnPlaneX = (-pt.x*n.y + pt.y*n.x + ptOnPlaneY*n.x)\
+                            ptOnPlaneX = -(-pt.x*n.y + pt.y*n.x + ptOnPlaneY*n.x)\
                                          /n.y
+                                         
                         elif n.z == max(n):
                             ptOnPlaneZ = (-pt.x*n.x*n.z + pt.z*n.x**2 + pt.z*n.y**2 - pt.y*n.y*n.z)\
                                          /(n.x**2 + n.y**2 + n.z**2)
@@ -652,10 +647,6 @@ class GrowHair(Operator):
                             yAxisTheta = 0
                         if n_xPrime < 0:
                             yAxisTheta = -yAxisTheta
-                            
-                        if n == pt:
-                            print(xPrime, pt.z)
-                            print(yAxisTheta)
                         
                         #rotate on y axis:
                         xPrimePrime = xPrime*cos(yAxisTheta) - pt.z*sin(yAxisTheta)
@@ -872,6 +863,11 @@ class GrowHair(Operator):
                         for l in weightNumerator:
                             weight.append( l / sum(weightNumerator) )
                         ptWeights.append(weight)
+                        
+                    
+                    #n1 = rotateToXY(normal, normal)
+                    #n2 = rotateToVector(normal, n1)
+                    #print(normal, n1, n2)
                             
                 
                 shift = shift + MG_attrs.guideCount        
