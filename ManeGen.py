@@ -542,7 +542,7 @@ class GrowHair(Operator):
                                 temp = z
                                 z = x
                                 x = temp
-                            if k == 1:
+                            elif k == 1:
                                 temp = z
                                 z = y
                                 y = temp
@@ -569,7 +569,7 @@ class GrowHair(Operator):
                             if planeVectors[k][k] > planeVectors[index][index]:
                                 index = k
                         
-                        return (Vector(planeVectors[k]).normalized(), center)
+                        return (Vector(planeVectors[index]).normalized(), center)
                     
                     normal, center = getPlaneNormal()
                     
@@ -581,8 +581,9 @@ class GrowHair(Operator):
                         #by taking dot product of vectr Vc-p and normal N such that
                         #               Vc-p . N = 0
                         pt = pt - cpt #set the point being moved to plane in coordinates shifted to plane center
-                        
+
                         if n.y == max(n):
+                            #print('y', j)
                             ptOnPlaneY = (-pt.x*n.x*n.y + pt.y*n.x**2 + pt.y*n.z**2 - pt.z*n.z*n.y)\
                                          /(n.x**2 + n.y**2 + n.z**2)
                             
@@ -593,6 +594,7 @@ class GrowHair(Operator):
                                          /n.y
                                          
                         elif n.z == max(n):
+                            #print('z', j)
                             ptOnPlaneZ = (-pt.x*n.x*n.z + pt.z*n.x**2 + pt.z*n.y**2 - pt.y*n.y*n.z)\
                                          /(n.x**2 + n.y**2 + n.z**2)
                             
@@ -603,6 +605,7 @@ class GrowHair(Operator):
                                          /n.z
                                          
                         else:
+                            #print('x', j)
                             ptOnPlaneX = (-pt.z*n.z*n.x + pt.x*n.y**2 + pt.x*n.z**2 - pt.y*n.y*n.x)\
                                          /(n.x**2 + n.y**2 + n.z**2)
                             
