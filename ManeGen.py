@@ -1007,10 +1007,21 @@ class ManeGenPanel(Panel):
         row.prop(MG_attrs, 'stripTube', text = '')
         
         row = col.row()
+        row.alignment = 'RIGHT'
+        if MG_attrs.lockEdit:
+            row.label(text = 'Lock Hair Generation', icon = "LOCKED")
+        else:
+            row.label(text = 'Lock Hair Generation')
+        row.prop(MG_attrs, 'lockEdit', text = '')
+        
+        
+        row = col.row()
         row.operator("particle.hair_style")
         if MG_attrs.distWidth < MG_attrs.distSharpness and MG_attrs.dist == 'normal':
             row.enabled = False
         if not MG_attrs.hairTemplate:
+            row.enabled = False
+        if MG_attrs.lockEdit:
             row.enabled = False
 
 
@@ -1062,6 +1073,8 @@ class PartSettingsProperties(PropertyGroup):
     zMag: FloatProperty(
         min = 0,
         step = 1)
+    lockEdit: BoolProperty(
+        default = False)
 
 
 
