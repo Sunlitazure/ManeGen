@@ -17,7 +17,7 @@ Once ManeGen.py is installed and enabled in properties it will be found in the p
 ### Behavior
 ManeGen behaves similarly to Jandals' HairNet, but is more tailored to creating hair styles for characters (I think. Maybe I'm just using it wrong.)
 
-For types of hair template shapes are supported. Tube like objects, tubes terminating with a single vertex, planes, and planes terminating with a single vertex. 
+Four types of hair template shapes are supported. Tube like objects, tubes terminating with a single vertex, planes, and planes terminating with a single vertex. 
 
 The mesh used as the hair template must have the edge at the hair roots set as a seam. See the image below
 
