@@ -4,15 +4,15 @@ Generate hair from mesh
 ### Example!
 The tips of the hair were brushed into clumps, and the roots extended down in 'Particle Edit' mode after being generated. Those are the only modifications made after generation.
 
-![](file:///./readme_images/addon_hair_render.png)
-![](file:///./readme_images/addon_hair_render_wTemp.png)
-![](file:///./readme_images/addon_hair_render_tempOnly.png)
+<img src="/readme_images/addon_hair_render.PNG" width="50%">
+<img src="/readme_images/addon_hair_render_wTemp.PNG">
+<img src="/readme_images/addon_hair_render_tempOnly.PNG">
 
 ## Use
 
 Once ManeGen.py is installed and enabled in properties it will be found in the particles panel once a particle system has been created and set to Hair.
 
-![](file:///./readme_images/addon_prop_panel.PNG)
+<img src="/readme_images/addon_prop_panel.PNG">
 
 ### Behavior
 ManeGen behaves similarly to Jandals' HairNet, but is more tailored to creating hair styles for characters (I think. Maybe I'm just using it wrong.)
@@ -23,7 +23,7 @@ The mesh used as the hair template must have the edge at the hair roots set as a
 
 _Every_ edge perpendicular to the seam must be the same length for _every_ mesh in the object for it to work properly.
 
-![](file:///./readme_images/addon_hair_form.PNG)
+<img src="/readme_images/addon_hair_form.PNG" width="60%">
 
 The hair template object can have as many separate meshes and be as complex as you wish, so long as each mesh in the object follows the above stated rules.
 
@@ -43,8 +43,8 @@ Depending on how many vertices the hair template object has and the guide count,
 
 Once you are happy with how the hair is generated I suggest enabling 'Lock Hair Generation' so you never accidentally reset the hair style. Then use 'Hair Edit' mode to make any minor adjustments you wish to make the hair look perfect.
 
-![](file:///./readme_images/addon_hair_form_wHair.png)
-![](file:///./readme_images/addon_hair_form_wHairEdit.png)
+<img src="/readme_images/addon_hair_form_wHair.PNG" width="60%">
+<img src="/readme_images/addon_hair_form_wHairEdit.PNG" width="60%">
 
 ### Settings
 
