@@ -4,7 +4,7 @@
 bl_info = {
     "name": "",
     "author": "",
-    "version": (0, 1),
+    "version": (1, 0),
     "blender": (2, 80, 0),
     "location": "Properties > Particle",
     "description": "",
