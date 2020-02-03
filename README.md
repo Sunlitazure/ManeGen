@@ -66,6 +66,15 @@ This defines settings for volumetric hair generation, i.e. _tube-like_ template 
 #### - Edge sub-panel
 This defines settings for direct hair guide generation, i.e. _planar_ template objects
 
+- **Subdiv:** How many hair to interpolate between edges on the mesh
+- **Use edge guides on volume objects:** Lets volumetric objects also behave like planar objects by growing hairs along the mesh edges as wells as inside the volume.
+
+</br>
+
+- **Lock Hair Generation:** Disable the style hair button so you don't accidentally regenerate hair, overiding 'particle edit' edits.
+
+- **Style Hair:** Generate hairs following the hair template object
+
 ### Limitations
 - The hairs get moved around, so when applying a texture map to the hair, UVs can't be used. Try using the 'Generated' or 'Object' options in the 'Texture Coordinate' node instead. See the hair_texture_example.blend example
 
