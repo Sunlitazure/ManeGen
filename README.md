@@ -1,5 +1,5 @@
 # ManeGen
-Generate hair from mesh
+Generate hair from mesh in Blender 2.80+
 
 ### Example!
 The tips of the hair were brushed into clumps, and the roots extended down in 'Particle Edit' mode after being generated. Those are the only modifications made after generation.
@@ -10,7 +10,7 @@ The tips of the hair were brushed into clumps, and the roots extended down in 'P
 
 ## Use
 
-Once ManeGen.py is installed and enabled in properties it will be found in the particles panel once a particle system has been created and set to Hair.
+Once ManeGen.py is downloaded, installed, and enabled in Blender's properties it will be found in the particles panel once a particle system has been created and set to Hair.
 
 <img src="/readme_images/addon_prop_panel.PNG">
 
@@ -30,6 +30,8 @@ The hair template object can have as many separate meshes and be as complex as y
 Any time changes are made to the ManeGen settings the hair will need to be generated using the 'Style Hair' button again.
 
 All changes made to the hair in 'Hair Edit' mode will be lost when clicking the 'Style Hair' button. Doing so completely resets the hair edit and regenerates the hair.
+
+ManeGen settings are contained in the particleSettings, so every particleSetting will have its own unique ManeGen settings even for multiple particleSettings on the same object 
 
 ### Generate Hair
 
